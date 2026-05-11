@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
   getBootstrap,
-  getLeagueStandings,
+  getLeagueMembers,
   getManagerPicks,
   getLiveGW,
 } from '../lib/fpl-api';
@@ -31,7 +31,7 @@ export default function DashboardPage() {
     async function load() {
       try {
         setLoading(true);
-        const [bs, ls] = await Promise.all([getBootstrap(), getLeagueStandings(leagueId)]);
+        const [bs, ls] = await Promise.all([getBootstrap(), getLeagueMembers(leagueId)]);
         setBootstrap(bs);
         setStandings(ls);
         const gw =
@@ -65,7 +65,7 @@ export default function DashboardPage() {
   const currentGw =
     bootstrap.events.find((e) => e.is_current) ||
     [...bootstrap.events].reverse().find((e) => e.finished);
-  const managers = standings?.standings?.results || [];
+  const managers = standings?.members || [];
   const playerMap = Object.fromEntries(bootstrap.elements.map((p) => [p.id, p]));
   const teamMap   = Object.fromEntries(bootstrap.teams.map((t) => [t.id, t]));
   const livePoints = Object.fromEntries(
@@ -87,7 +87,7 @@ export default function DashboardPage() {
             </span>
           )}
         </div>
-        <p className="text-liu-muted text-sm font-mono">{standings?.league?.name}</p>
+        <p className="text-liu-muted text-sm font-mono">{standings?.league?.name || 'LiU AIS'}</p>
       </div>
 
       {/* GW meta */}

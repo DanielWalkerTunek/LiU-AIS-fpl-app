@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { getLeagueStandings, getManagerHistory } from '../lib/fpl-api';
+import { getLeagueMembers, getManagerHistory } from '../lib/fpl-api';
 
 export default function StandingsPage() {
   const { leagueId } = useOutletContext();
@@ -15,9 +15,9 @@ export default function StandingsPage() {
     async function load() {
       try {
         setLoading(true);
-        const data = await getLeagueStandings(leagueId);
+        const data = await getLeagueMembers(leagueId);
         setLeague(data.league);
-        const results = data.standings?.results || [];
+        const results = data.members;
         setStandings(results);
         const settled = await Promise.allSettled(
           results.map((m) =>
