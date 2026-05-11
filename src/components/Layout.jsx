@@ -5,10 +5,10 @@ import AuthModal from './AuthModal';
 import { LEAGUE_ID } from '../lib/constants';
 
 const NAV = [
-  { to: '/', label: 'Gameweek', icon: '⚽' },
-  { to: '/standings', label: 'Standings', icon: '🏆' },
-  { to: '/players', label: 'Players', icon: '👤' },
-  { to: '/transfers', label: 'Transfers', icon: '🔄' },
+  { to: '/', label: 'Gameweek' },
+  { to: '/standings', label: 'Standings' },
+  { to: '/players', label: 'Players' },
+  { to: '/transfers', label: 'Transfers' },
 ];
 
 function LiULogo({ className = '' }) {
@@ -81,7 +81,6 @@ export default function Layout() {
                   : {}
               }
             >
-              <span className="text-base">{item.icon}</span>
               {item.label}
             </NavLink>
           ))}
@@ -192,7 +191,6 @@ export default function Layout() {
               color: isActive ? '#40c4ff' : 'rgba(122,148,176,0.7)',
             })}
           >
-            <span className="text-lg">{item.icon}</span>
             <span className="text-[10px] font-mono uppercase tracking-widest">{item.label}</span>
           </NavLink>
         ))}
