@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import AuthModal from './AuthModal';
+import { LEAGUE_ID } from '../lib/constants';
 
 const NAV = [
   { to: '/', label: 'Gameweek', icon: '⚽' },
@@ -8,7 +11,6 @@ const NAV = [
   { to: '/transfers', label: 'Transfers', icon: '🔄' },
 ];
 
-/* LiU AI Society logo — pulled from liuais.com */
 function LiULogo({ className = '' }) {
   return (
     <img
@@ -21,22 +23,14 @@ function LiULogo({ className = '' }) {
 }
 
 export default function Layout() {
-  const [leagueId, setLeagueId] = useState(
-    () => localStorage.getItem('fpl_league_id') || ''
-  );
-  const [input, setInput] = useState(leagueId);
-  const [showSettings, setShowSettings] = useState(!leagueId);
-
-  function save() {
-    localStorage.setItem('fpl_league_id', input.trim());
-    setLeagueId(input.trim());
-    setShowSettings(false);
-  }
+  const { user, profile, setProfile, loading } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
 
   return (
     <div className="flex min-h-screen">
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex flex-col w-60 fixed h-screen z-20"
+      <aside
+        className="hidden md:flex flex-col w-60 fixed h-screen z-20"
         style={{
           background: 'linear-gradient(180deg, rgba(4,13,28,0.98) 0%, rgba(6,16,34,0.98) 100%)',
           borderRight: '1px solid rgba(255,255,255,0.06)',
@@ -50,17 +44,16 @@ export default function Layout() {
               <div className="text-white font-bold text-sm leading-tight">LiU AI Society</div>
               <div
                 className="text-xs font-mono uppercase tracking-widest"
-                style={{ background: 'linear-gradient(90deg,#40c4ff,#09ddff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+                style={{
+                  background: 'linear-gradient(90deg,#40c4ff,#09ddff)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
               >
                 FPL
               </div>
             </div>
           </div>
-          {leagueId && (
-            <div className="mt-2 text-xs font-mono" style={{ color: 'rgba(64,196,255,0.5)' }}>
-              League #{leagueId}
-            </div>
-          )}
         </div>
 
         <div className="liu-divider mx-4 mb-4" />
@@ -74,9 +67,7 @@ export default function Layout() {
               end={item.to === '/'}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-xs font-mono uppercase tracking-widest ${
-                  isActive
-                    ? 'text-white'
-                    : 'text-liu-muted hover:text-white'
+                  isActive ? 'text-white' : 'text-liu-muted hover:text-white'
                 }`
               }
               style={({ isActive }) =>
@@ -98,16 +89,48 @@ export default function Layout() {
 
         <div className="liu-divider mx-4 mt-4" />
 
-        <div className="px-5 py-4">
-          <button
-            onClick={() => { setInput(leagueId); setShowSettings(true); }}
-            className="text-xs font-mono uppercase tracking-widest transition-colors"
-            style={{ color: 'rgba(64,196,255,0.5)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#40c4ff')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(64,196,255,0.5)')}
-          >
-            ⚙ Settings
-          </button>
+        {/* User section */}
+        <div className="px-4 py-4">
+          {loading ? null : user ? (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+              style={{ border: '1px solid rgba(64,196,255,0.15)', background: 'rgba(64,196,255,0.05)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(64,196,255,0.35)')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(64,196,255,0.15)')}
+            >
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-mono shrink-0"
+                style={{ background: 'linear-gradient(135deg,#0070bb,#09ddff)', color: '#fff' }}
+              >
+                {(profile?.display_name || user.email)?.[0]?.toUpperCase()}
+              </div>
+              <div className="min-w-0 text-left">
+                <div className="text-xs font-semibold text-white truncate">
+                  {profile?.display_name || 'My Account'}
+                </div>
+                {profile?.fpl_manager_id && (
+                  <div className="text-[10px] font-mono text-liu-muted">
+                    FPL #{profile.fpl_manager_id}
+                  </div>
+                )}
+              </div>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="w-full text-xs font-mono uppercase tracking-widest py-2.5 rounded-xl transition-all"
+              style={{
+                background: 'rgba(64,196,255,0.07)',
+                border: '1px solid rgba(64,196,255,0.2)',
+                color: '#9bdfff',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(64,196,255,0.13)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(64,196,255,0.07)')}
+            >
+              Sign in
+            </button>
+          )}
         </div>
       </aside>
 
@@ -122,40 +145,31 @@ export default function Layout() {
       >
         <div className="flex items-center gap-2.5">
           <LiULogo className="h-7 w-7" />
-          <div>
-            <span className="font-bold text-sm text-white">LiU AI Society</span>
-            <span
-              className="ml-1.5 text-xs font-mono"
-              style={{ background: 'linear-gradient(90deg,#40c4ff,#09ddff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-            >
-              FPL
-            </span>
-          </div>
+          <span className="font-bold text-sm text-white">LiU AI Society</span>
+          <span
+            className="text-xs font-mono"
+            style={{
+              background: 'linear-gradient(90deg,#40c4ff,#09ddff)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            FPL
+          </span>
         </div>
         <button
-          onClick={() => { setInput(leagueId); setShowSettings(true); }}
-          className="text-liu-muted hover:text-white transition-colors text-sm"
+          onClick={() => setShowAuth(true)}
+          className="text-xs font-mono px-3 py-1.5 rounded-lg transition-colors"
+          style={{ color: user ? '#40c4ff' : '#7a94b0', border: '1px solid rgba(255,255,255,0.08)' }}
         >
-          ⚙
+          {user ? (profile?.display_name || user.email)?.[0]?.toUpperCase() + '  ▾' : 'Sign in'}
         </button>
       </div>
 
       {/* ── Main content ── */}
       <main className="flex-1 md:ml-60 pt-14 md:pt-0 pb-20 md:pb-0">
         <div className="max-w-5xl mx-auto p-4 md:p-6">
-          {!leagueId && (
-            <div
-              className="mb-5 rounded-xl px-4 py-3 text-sm font-mono"
-              style={{
-                background: 'rgba(64,196,255,0.06)',
-                border: '1px solid rgba(64,196,255,0.2)',
-                color: '#9bdfff',
-              }}
-            >
-              ⚠ Open settings and enter your FPL classic league ID to get started.
-            </div>
-          )}
-          <Outlet context={{ leagueId }} />
+          <Outlet context={{ leagueId: LEAGUE_ID, user, profile }} />
         </div>
       </main>
 
@@ -179,87 +193,19 @@ export default function Layout() {
             })}
           >
             <span className="text-lg">{item.icon}</span>
-            <span className="text-[10px] font-mono uppercase tracking-widest">
-              {item.label}
-            </span>
+            <span className="text-[10px] font-mono uppercase tracking-widest">{item.label}</span>
           </NavLink>
         ))}
       </nav>
 
-      {/* ── Settings modal ── */}
-      {showSettings && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(2,6,18,0.82)', backdropFilter: 'blur(8px)' }}
-        >
-          <div
-            className="max-w-sm w-full rounded-2xl p-8"
-            style={{
-              background: '#070f1d',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderTop: '1px solid rgba(64,196,255,0.22)',
-              boxShadow:
-                '0 0 0 1px rgba(64,196,255,0.06), 0 24px 64px rgba(0,0,0,0.5), 0 4px 24px rgba(0,136,204,0.12)',
-            }}
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <LiULogo className="h-8 w-8" />
-              <div>
-                <div className="font-bold text-white">LiU AI Society FPL</div>
-                <div
-                  className="text-xs font-mono uppercase tracking-widest"
-                  style={{ color: '#40c4ff' }}
-                >
-                  Settings
-                </div>
-              </div>
-            </div>
-
-            <label
-              className="block text-xs font-mono uppercase tracking-widest mb-2"
-              style={{ color: '#7a94b0' }}
-            >
-              FPL Classic League ID
-            </label>
-            <input
-              type="number"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && save()}
-              placeholder="e.g. 123456"
-              autoFocus
-              className="w-full mb-2 px-4 py-3 rounded-xl text-white text-sm font-mono focus:outline-none transition-all"
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
-              onFocus={(e) => {
-                e.target.style.background = 'rgba(64,196,255,0.05)';
-                e.target.style.borderColor = 'rgba(64,196,255,0.55)';
-                e.target.style.boxShadow = '0 0 0 3px rgba(64,196,255,0.08)';
-              }}
-              onBlur={(e) => {
-                e.target.style.background = 'rgba(255,255,255,0.05)';
-                e.target.style.borderColor = 'rgba(255,255,255,0.1)';
-                e.target.style.boxShadow = 'none';
-              }}
-            />
-            <p className="text-xs mb-6" style={{ color: 'rgba(122,148,176,0.6)' }}>
-              FPL app → Leagues → your classic league → number in the URL.
-            </p>
-
-            <div className="flex gap-3">
-              <button onClick={save} className="btn-primary flex-1">
-                Save
-              </button>
-              {leagueId && (
-                <button onClick={() => setShowSettings(false)} className="btn-secondary">
-                  Cancel
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* ── Auth modal ── */}
+      {showAuth && (
+        <AuthModal
+          user={user}
+          profile={profile}
+          setProfile={setProfile}
+          onClose={() => setShowAuth(false)}
+        />
       )}
     </div>
   );
