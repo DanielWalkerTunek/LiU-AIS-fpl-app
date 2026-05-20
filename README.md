@@ -3,6 +3,8 @@
 
 A Fantasy Premier League companion app built for **LiU AI Society** (Linköping University). Track our mini-league standings, view gameweek results, and compare stats with other members, all in one place.
 
+liu-ais-fpl-app.netlify.app
+
 ## Getting Started
 
 ### Prerequisites
