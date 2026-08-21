@@ -31,13 +31,23 @@ export async function getProfile(userId) {
 }
 
 export async function upsertProfile(userId, updates) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert({ id: userId, ...updates })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, ...updates })
+      .select()
+      .single()
+      .abortSignal(controller.signal);
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Request timed out — please try again.');
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function getAllProfiles() {
