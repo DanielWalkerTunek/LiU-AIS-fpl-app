@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { getBootstrap, getFixtures, getManagerPicks, getLiveGW } from '../lib/fpl-api';
 import { buildFixtureMap, computeXPts } from '../lib/ml';
-import { Pitch, POS_COLOR } from '../components/Pitch';
+import { Pitch, PlayerToken, POS_COLOR } from '../components/Pitch';
 
 const POSITION_MAP = { 1: 'GKP', 2: 'DEF', 3: 'MID', 4: 'FWD' };
 
@@ -49,8 +49,8 @@ export default function TransfersPage() {
     load();
   }, [fplId]);
 
-  const { starting, teamMap, playerMap, suggestions } = useMemo(() => {
-    if (!bootstrap || !picks) return { starting: [], teamMap: {}, playerMap: {}, suggestions: [] };
+  const { starting, bench, teamMap, playerMap, suggestions } = useMemo(() => {
+    if (!bootstrap || !picks) return { starting: [], bench: [], teamMap: {}, playerMap: {}, suggestions: [] };
 
     const teamMap   = Object.fromEntries(bootstrap.teams.map((t) => [t.id, t]));
     const playerMap = Object.fromEntries(bootstrap.elements.map((p) => [p.id, p]));
@@ -64,6 +64,7 @@ export default function TransfersPage() {
     const squadIds = new Set(picks.picks.map((p) => p.element));
     const bank = (picks.entry_history?.bank || 0) / 10;
     const starting = picks.picks.filter((p) => p.position <= 11);
+    const bench    = picks.picks.filter((p) => p.position > 11).sort((a, b) => a.position - b.position);
 
     const candidates = bootstrap.elements.map((p) => ({
       player: p,
@@ -75,6 +76,9 @@ export default function TransfersPage() {
       .map((pick) => {
         const player = playerMap[pick.element];
         if (!player) return null;
+        // no minutes yet this season means no real signal to judge them on -
+        // don't suggest transferring someone out before they've even played
+        if (player.minutes === 0) return null;
         const outXpts = computeXPts(player, fixturesByTeam);
         const budget  = player.now_cost / 10 + bank;
 
@@ -91,7 +95,7 @@ export default function TransfersPage() {
       .sort((a, b) => b.delta - a.delta)
       .slice(0, 2);
 
-    return { starting, teamMap, playerMap, suggestions };
+    return { starting, bench, teamMap, playerMap, suggestions };
   }, [bootstrap, fixtures, picks]);
 
   const livePoints = Object.fromEntries(
@@ -118,7 +122,26 @@ export default function TransfersPage() {
 
       {!picksError && picks && (
         <div className="grid lg:grid-cols-[1fr_320px] gap-4 items-start">
-          <Pitch picks={starting} playerMap={playerMap} teamMap={teamMap} livePoints={livePoints} />
+          <div>
+            <Pitch picks={starting} playerMap={playerMap} teamMap={teamMap} livePoints={livePoints} />
+
+            <div className="mt-4">
+              <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-2">
+                Bench · {picks.entry_history?.points_on_bench} pts
+              </h2>
+              <div className="card flex justify-center gap-4 md:gap-8 flex-wrap py-5">
+                {bench.map((pick) => (
+                  <PlayerToken
+                    key={pick.element}
+                    pick={pick}
+                    player={playerMap[pick.element]}
+                    team={teamMap[playerMap[pick.element]?.team]}
+                    livePoints={livePoints}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
 
           <div className="card">
             <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-3">
