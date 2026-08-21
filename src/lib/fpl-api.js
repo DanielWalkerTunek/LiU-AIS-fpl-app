@@ -10,6 +10,7 @@ async function fplFetch(path) {
 export const getBootstrap = () => fplFetch('bootstrap-static/');
 export const getLeagueStandings = (id) =>
   fplFetch(`leagues-classic/${id}/standings/`);
+export const getManagerEntry = (managerId) => fplFetch(`entry/${managerId}/`);
 export const getManagerPicks = (managerId, gw) =>
   fplFetch(`entry/${managerId}/event/${gw}/picks/`);
 export const getManagerHistory = (managerId) =>

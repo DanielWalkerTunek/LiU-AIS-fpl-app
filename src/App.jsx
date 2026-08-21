@@ -4,6 +4,7 @@ import DashboardPage from './pages/DashboardPage';
 import StandingsPage from './pages/StandingsPage';
 import PlayersPage from './pages/PlayersPage';
 import TransfersPage from './pages/TransfersPage';
+import MyTeamPage from './pages/MyTeamPage';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="standings" element={<StandingsPage />} />
         <Route path="players" element={<PlayersPage />} />
+        <Route path="my-team" element={<MyTeamPage />} />
         <Route path="transfers" element={<TransfersPage />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Route>

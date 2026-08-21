@@ -8,6 +8,7 @@ const NAV = [
   { to: '/', label: 'Gameweek' },
   { to: '/standings', label: 'Standings' },
   { to: '/players', label: 'Players' },
+  { to: '/my-team', label: 'My Team' },
   { to: '/transfers', label: 'Transfers' },
 ];
 
