@@ -1,15 +1,21 @@
 // Expected-points model for FPL transfer suggestions.
 //
-// xPts = (0.6 × form + 0.4 × PPG) × fixture_factor × availability_factor
+// xPts = base × fixture_factor × availability_factor
 //
-// fixture_factor  : (6 − avg_FDR_of_next_3) / 5  →  0.2 (FDR 5) … 1.0 (FDR 1)
+// base            : 0.6 × form + 0.4 × PPG, or PPG alone when form is 0 (no
+//                   minutes played yet this season — form is 0 for every
+//                   player pre-season and early in the campaign, so letting
+//                   it drag the blend down would understate everyone)
+// fixture_factor  : 1.15 (FDR 1, easiest) … 0.75 (FDR 5, hardest) over the
+//                   next 3 fixtures — fixtures nudge the projection, they
+//                   shouldn't swamp a player's underlying quality
 // availability    : 1.0 fit | chance/100 doubtful | 0.0 injured/suspended
 
 function fixtureScore(upcoming, n = 3) {
-  if (!upcoming.length) return 0.5;
+  if (!upcoming.length) return 0.95;
   const slice = upcoming.slice(0, n);
   const avg = slice.reduce((s, f) => s + f.difficulty, 0) / slice.length;
-  return (6 - avg) / 5;
+  return 1.15 - (avg - 1) * 0.1;
 }
 
 function availabilityFactor(player) {
@@ -21,7 +27,7 @@ function availabilityFactor(player) {
 export function computeXPts(player, fixturesByTeam) {
   const ppg = parseFloat(player.points_per_game) || 0;
   const form = parseFloat(player.form) || 0;
-  const base = form * 0.6 + ppg * 0.4;
+  const base = form > 0 ? form * 0.6 + ppg * 0.4 : ppg;
   const fScore = fixtureScore(fixturesByTeam[player.team] || []);
   const avail = availabilityFactor(player);
   return Math.round(base * fScore * avail * 10) / 10;

@@ -387,7 +387,7 @@ export default function PlayersPage() {
             className="mb-4 px-4 py-2.5 rounded-xl text-xs font-mono"
             style={{ background: 'rgba(64,196,255,0.06)', border: '1px solid rgba(64,196,255,0.15)', color: '#9bdfff' }}
           >
-            <strong>xPts</strong> = (0.6 × form + 0.4 × PPG) × fixture factor × availability ·{' '}
+            <strong>xPts</strong> = (form-weighted PPG, or PPG alone pre-season) × fixture factor × availability ·{' '}
             <strong>Value</strong> = xPts / cost · Fixture: green = easy, red = hard
           </div>
 
