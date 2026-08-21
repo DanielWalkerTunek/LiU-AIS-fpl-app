@@ -1,13 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { getBootstrap, getManagerEntry, getManagerPicks, getLiveGW } from '../lib/fpl-api';
-
-const POS_COLOR = {
-  1: { bg: 'rgba(234,179,8,0.85)',  color: '#0a1120' },
-  2: { bg: 'rgba(59,130,246,0.85)', color: '#0a1120' },
-  3: { bg: 'rgba(64,196,255,0.85)', color: '#0a1120' },
-  4: { bg: 'rgba(239,68,68,0.85)',  color: '#0a1120' },
-};
+import { Pitch, PlayerToken } from '../components/Pitch';
 
 export default function MyTeamPage() {
   const { user, profile } = useOutletContext();
@@ -146,93 +140,6 @@ export default function MyTeamPage() {
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function Pitch({ picks, playerMap, teamMap, livePoints }) {
-  const rows = [1, 2, 3, 4].map((type) =>
-    picks.filter((p) => playerMap[p.element]?.element_type === type)
-  );
-
-  return (
-    <div
-      className="relative rounded-2xl overflow-hidden p-4 md:p-6 space-y-4 md:space-y-8"
-      style={{
-        background: 'radial-gradient(ellipse at center, #0f4028 0%, #0a2e1c 65%, #082418 100%)',
-        border: '1px solid rgba(255,255,255,0.08)',
-      }}
-    >
-      {/* Pitch markings */}
-      <div
-        className="absolute inset-4 md:inset-6 rounded-lg pointer-events-none"
-        style={{ border: '1px solid rgba(255,255,255,0.1)' }}
-      />
-      <div
-        className="absolute left-1/2 top-1/2 w-20 h-20 md:w-28 md:h-28 rounded-full pointer-events-none"
-        style={{ border: '1px solid rgba(255,255,255,0.1)', transform: 'translate(-50%, -50%)' }}
-      />
-      <div
-        className="absolute left-4 right-4 md:left-6 md:right-6 top-1/2 pointer-events-none"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}
-      />
-
-      {rows.map((row, i) => (
-        <div key={i} className="relative z-10 flex justify-center gap-3 md:gap-8 flex-wrap">
-          {row.map((pick) => (
-            <PlayerToken
-              key={pick.element}
-              pick={pick}
-              player={playerMap[pick.element]}
-              team={teamMap[playerMap[pick.element]?.team]}
-              livePoints={livePoints}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function PlayerToken({ pick, player, team, livePoints }) {
-  const pts = livePoints[pick.element] ?? 0;
-  const displayPts = pick.multiplier > 1 ? pts * pick.multiplier : pts;
-  const pc = POS_COLOR[player?.element_type];
-
-  return (
-    <div className="flex flex-col items-center gap-1 w-16 md:w-20">
-      <div className="relative">
-        <div
-          className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold font-mono shrink-0"
-          style={{ background: pc?.bg, color: pc?.color, boxShadow: '0 2px 8px rgba(0,0,0,0.35)' }}
-        >
-          {team?.short_name || '—'}
-        </div>
-        {(pick.is_captain || pick.is_vice_captain) && (
-          <span
-            className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold font-mono"
-            style={{
-              background: pick.is_captain ? '#fbbf24' : '#7a94b0',
-              color: '#0a1120',
-              border: '1px solid rgba(10,17,32,0.4)',
-            }}
-          >
-            {pick.is_captain ? 'C' : 'V'}
-          </span>
-        )}
-      </div>
-      <div
-        className="text-[10px] md:text-xs font-semibold text-white text-center truncate w-full px-1 py-0.5 rounded"
-        style={{ background: 'rgba(0,0,0,0.35)' }}
-      >
-        {player?.web_name || '—'}
-      </div>
-      <div
-        className="text-[10px] font-bold font-mono px-1.5 rounded"
-        style={{ color: displayPts > 0 ? '#40c4ff' : 'rgba(255,255,255,0.4)' }}
-      >
-        {displayPts} pts
-      </div>
     </div>
   );
 }
