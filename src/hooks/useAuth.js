@@ -3,16 +3,20 @@ import { supabase } from '../lib/supabase';
 import { getProfile } from '../lib/auth';
 
 export function useAuth() {
-  const [user,    setUser]    = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user,           setUser]           = useState(null);
+  const [profile,        setProfile]        = useState(null);
+  const [loading,        setLoading]        = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) getProfile(session.user.id).then(setProfile);
+      if (session?.user) {
+        setProfileLoading(true);
+        getProfile(session.user.id).then((p) => { setProfile(p); setProfileLoading(false); });
+      }
       setLoading(false);
     });
 
@@ -20,12 +24,19 @@ export function useAuth() {
       async (_event, session) => {
         const u = session?.user ?? null;
         setUser(u);
-        setProfile(u ? await getProfile(u.id) : null);
+        if (u) {
+          setProfileLoading(true);
+          const p = await getProfile(u.id);
+          setProfile(p);
+          setProfileLoading(false);
+        } else {
+          setProfile(null);
+        }
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
 
-  return { user, profile, setProfile, loading };
+  return { user, profile, setProfile, loading, profileLoading };
 }

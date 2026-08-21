@@ -24,7 +24,7 @@ function LiULogo({ className = '' }) {
 }
 
 export default function Layout() {
-  const { user, profile, setProfile, loading } = useAuth();
+  const { user, profile, setProfile, loading, profileLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
   return (
@@ -202,6 +202,7 @@ export default function Layout() {
         <AuthModal
           user={user}
           profile={profile}
+          profileLoading={profileLoading}
           setProfile={setProfile}
           onClose={() => setShowAuth(false)}
         />

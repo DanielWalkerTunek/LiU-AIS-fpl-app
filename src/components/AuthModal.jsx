@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn, signUp, signOut, upsertProfile } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 
@@ -80,7 +80,7 @@ function SignInView({ onSwitch, onSuccess }) {
 }
 
 /* ── Sign-up view ── */
-function SignUpView({ onSwitch, onSuccess }) {
+function SignUpView({ onSwitch, onSuccess, setProfile }) {
   const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
@@ -92,7 +92,8 @@ function SignUpView({ onSwitch, onSuccess }) {
     setError('');
     setLoading(true);
     try {
-      await signUp(email, password, name);
+      const { profile } = await signUp(email, password, name);
+      setProfile(profile);
       onSuccess();
     } catch (err) {
       setError(err.message);
@@ -121,15 +122,24 @@ function SignUpView({ onSwitch, onSuccess }) {
 }
 
 /* ── Profile view (logged in) ── */
-function ProfileView({ user, profile, setProfile, onClose }) {
+function ProfileView({ user, profile, profileLoading, setProfile, onClose }) {
   const [fplId,   setFplId]   = useState(profile?.fpl_manager_id?.toString() || '');
   const [name,    setName]    = useState(profile?.display_name || '');
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
   const [error,   setError]   = useState('');
 
+  // profile loads asynchronously after sign-in, so it can still be null (or
+  // stale) when this form first mounts — sync the fields once it arrives
+  // rather than freezing them at their initial (blank) values.
+  useEffect(() => {
+    setFplId(profile?.fpl_manager_id?.toString() || '');
+    setName(profile?.display_name || '');
+  }, [profile]);
+
   async function save(e) {
     e.preventDefault();
+    if (profileLoading) return;
     setError('');
     setSaving(true);
     try {
@@ -160,20 +170,28 @@ function ProfileView({ user, profile, setProfile, onClose }) {
       >
         {user.email}
       </div>
-      <Input label="Display name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
+      <Input
+        label="Display name"
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        disabled={profileLoading}
+        placeholder={profileLoading ? 'Loading…' : undefined}
+      />
       <Input
         label="FPL Manager ID"
         type="number"
         value={fplId}
         onChange={(e) => setFplId(e.target.value)}
-        placeholder="e.g. 123456"
+        placeholder={profileLoading ? 'Loading…' : 'e.g. 123456'}
+        disabled={profileLoading}
       />
       <p className="text-xs font-mono text-liu-muted mb-4 -mt-1">
         FPL app → Points → your entry ID in the URL
       </p>
       {error && <p className="text-xs text-red-400 font-mono mb-3">{error}</p>}
-      <button type="submit" className="btn-primary w-full mb-3" disabled={saving}>
-        {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save profile'}
+      <button type="submit" className="btn-primary w-full mb-3" disabled={saving || profileLoading}>
+        {profileLoading ? 'Loading your profile…' : saving ? 'Saving…' : saved ? '✓ Saved' : 'Save profile'}
       </button>
       <button
         type="button"
@@ -190,7 +208,7 @@ function ProfileView({ user, profile, setProfile, onClose }) {
 }
 
 /* ── Main modal ── */
-export default function AuthModal({ user, profile, setProfile, onClose }) {
+export default function AuthModal({ user, profile, profileLoading, setProfile, onClose }) {
   const [view, setView] = useState(user ? 'profile' : 'signin');
 
   if (!supabase) {
@@ -210,11 +228,11 @@ export default function AuthModal({ user, profile, setProfile, onClose }) {
       title={user ? 'My Account' : view === 'signin' ? 'Sign in' : 'Create account'}
     >
       {user ? (
-        <ProfileView user={user} profile={profile} setProfile={setProfile} onClose={onClose} />
+        <ProfileView user={user} profile={profile} profileLoading={profileLoading} setProfile={setProfile} onClose={onClose} />
       ) : view === 'signin' ? (
         <SignInView onSwitch={() => setView('signup')} onSuccess={onClose} />
       ) : (
-        <SignUpView onSwitch={() => setView('signin')} onSuccess={onClose} />
+        <SignUpView onSwitch={() => setView('signin')} onSuccess={onClose} setProfile={setProfile} />
       )}
     </ModalShell>
   );

@@ -3,10 +3,17 @@ import { supabase } from './supabase';
 export async function signUp(email, password, displayName) {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
+  let profile = null;
   if (data.user) {
-    await supabase.from('profiles').insert({ id: data.user.id, display_name: displayName });
+    const { data: inserted, error: insertError } = await supabase
+      .from('profiles')
+      .insert({ id: data.user.id, display_name: displayName })
+      .select()
+      .single();
+    if (insertError) throw insertError;
+    profile = inserted;
   }
-  return data;
+  return { ...data, profile };
 }
 
 export async function signIn(email, password) {
@@ -44,6 +51,7 @@ export async function upsertProfile(userId, updates) {
     return data;
   } catch (err) {
     if (err.name === 'AbortError') throw new Error('Request timed out — please try again.');
+    if (err.code === '23505') throw new Error('That FPL Manager ID is already linked to another account.');
     throw err;
   } finally {
     clearTimeout(timeout);
