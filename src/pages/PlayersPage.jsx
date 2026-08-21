@@ -50,6 +50,7 @@ export default function PlayersPage() {
   const [maxBudget,   setMaxBudget]   = useState('');
   const [compareList, setCompareList] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
+  const [showExplainer, setShowExplainer] = useState(false);
 
   useEffect(() => {
     Promise.all([getBootstrap(), getFixtures()])
@@ -223,16 +224,31 @@ export default function PlayersPage() {
           />
           <span className="text-liu-muted">m</span>
         </div>
+        <button
+          onClick={() => setShowExplainer((v) => !v)}
+          title="How xPts and Value are calculated"
+          className="w-7 h-7 rounded-full text-xs font-bold font-mono transition-all shrink-0"
+          style={
+            showExplainer
+              ? { background: 'rgba(64,196,255,0.18)', color: '#40c4ff', border: '1px solid rgba(64,196,255,0.4)' }
+              : { background: 'rgba(255,255,255,0.05)', color: '#7a94b0', border: '1px solid rgba(255,255,255,0.08)' }
+          }
+        >
+          ?
+        </button>
       </div>
 
       {/* Model explainer */}
-      <div
-        className="mb-4 px-4 py-2.5 rounded-xl text-xs font-mono"
-        style={{ background: 'rgba(64,196,255,0.06)', border: '1px solid rgba(64,196,255,0.15)', color: '#9bdfff' }}
-      >
-        <strong>xPts</strong> = (form-weighted PPG, or PPG alone pre-season) × fixture factor × availability |{' '}
-        <strong>Value</strong> = xPts / cost | Fixture: green = easy, red = hard
-      </div>
+      {showExplainer && (
+        <div
+          className="mb-4 px-5 py-4 rounded-xl text-xs font-mono leading-relaxed space-y-1.5"
+          style={{ background: 'rgba(64,196,255,0.06)', border: '1px solid rgba(64,196,255,0.15)', color: '#9bdfff' }}
+        >
+          <p><strong>xPts</strong> = (form-weighted PPG, or PPG alone pre-season) × fixture factor × availability</p>
+          <p><strong>Value</strong> = xPts / cost</p>
+          <p>Fixture: green = easy, red = hard</p>
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-2xl overflow-hidden overflow-x-auto" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
