@@ -62,33 +62,3 @@ export function buildFixtureMap(fixtures, currentGw) {
 
   return map;
 }
-
-export function getRecommendations(players, fixturesByTeam, positionType, maxBudget = null) {
-  const typeMap = { GKP: 1, DEF: 2, MID: 3, FWD: 4 };
-  const typeId = typeMap[positionType];
-
-  const scored = players
-    .filter((p) => p.element_type === typeId && parseFloat(p.total_points) > 0)
-    .map((p) => {
-      const xpts = computeXPts(p, fixturesByTeam);
-      const cost = p.now_cost / 10;
-      return {
-        ...p,
-        xpts,
-        cost,
-        valueScore: cost > 0 ? Math.round((xpts / cost) * 100) / 100 : 0,
-        ownership: parseFloat(p.selected_by_percent) || 0,
-      };
-    });
-
-  const filtered = maxBudget ? scored.filter((p) => p.cost <= maxBudget) : scored;
-
-  return {
-    topXpts: [...filtered].sort((a, b) => b.xpts - a.xpts).slice(0, 12),
-    topValue: [...filtered].sort((a, b) => b.valueScore - a.valueScore).slice(0, 12),
-    differentials: [...filtered]
-      .filter((p) => p.ownership < 10 && p.xpts > 2)
-      .sort((a, b) => b.xpts - a.xpts)
-      .slice(0, 12),
-  };
-}
