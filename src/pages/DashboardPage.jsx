@@ -64,7 +64,9 @@ export default function DashboardPage() {
 
   const currentGw =
     bootstrap.events.find((e) => e.is_current) ||
-    [...bootstrap.events].reverse().find((e) => e.finished);
+    [...bootstrap.events].reverse().find((e) => e.finished) ||
+    bootstrap.events.find((e) => e.is_next) ||
+    bootstrap.events[0];
   const managers = standings?.members || [];
   const playerMap = Object.fromEntries(bootstrap.elements.map((p) => [p.id, p]));
   const teamMap   = Object.fromEntries(bootstrap.teams.map((t) => [t.id, t]));
