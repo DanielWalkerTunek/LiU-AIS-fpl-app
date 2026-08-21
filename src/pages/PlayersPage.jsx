@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { getBootstrap, getFixtures } from '../lib/fpl-api';
-import { buildFixtureMap, computeXPts } from '../lib/ml';
+import { buildFixtureMap, computeXPts, computePositionAvgPpg } from '../lib/ml';
 
 const POSITION_MAP   = { 1: 'GKP', 2: 'DEF', 3: 'MID', 4: 'FWD' };
 const POSITION_COLOR = {
@@ -69,13 +69,14 @@ export default function PlayersPage() {
       [...bootstrap.events].reverse().find((e) => e.finished)?.id ||
       bootstrap.events.find((e) => e.is_next)?.id || 1;
     const fixturesByTeam = fixtures.length ? buildFixtureMap(fixtures, currentGw) : {};
+    const positionAvgPpg = computePositionAvgPpg(bootstrap.elements);
 
     const budget = maxBudget ? parseFloat(maxBudget) : null;
 
     const list = bootstrap.elements
       .map((p) => {
         const cost = p.now_cost / 10;
-        const xpts = computeXPts(p, fixturesByTeam);
+        const xpts = computeXPts(p, fixturesByTeam, positionAvgPpg);
         return {
           ...p,
           teamShort:  teamMap[p.team]?.short_name || '',
@@ -244,7 +245,7 @@ export default function PlayersPage() {
           className="mb-4 px-5 py-4 rounded-xl text-xs font-mono leading-relaxed space-y-1.5"
           style={{ background: 'rgba(64,196,255,0.06)', border: '1px solid rgba(64,196,255,0.15)', color: '#9bdfff' }}
         >
-          <p><strong>xPts</strong> = (form-weighted PPG, or PPG alone pre-season) × fixture factor × availability</p>
+          <p><strong>xPts</strong> = (form-weighted PPG, shrunk toward the position average early in the season) × fixture factor × availability</p>
           <p><strong>Value</strong> = xPts / cost</p>
           <p>Fixture: green = easy, red = hard</p>
         </div>

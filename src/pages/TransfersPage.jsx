@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { getBootstrap, getFixtures, getManagerPicks, getLiveGW } from '../lib/fpl-api';
-import { buildFixtureMap, computeXPts } from '../lib/ml';
+import { buildFixtureMap, computeXPts, computePositionAvgPpg } from '../lib/ml';
 import { Pitch, PlayerToken, POS_COLOR } from '../components/Pitch';
 
 const POSITION_MAP = { 1: 'GKP', 2: 'DEF', 3: 'MID', 4: 'FWD' };
@@ -60,6 +60,7 @@ export default function TransfersPage() {
       [...bootstrap.events].reverse().find((e) => e.finished)?.id ||
       bootstrap.events.find((e) => e.is_next)?.id || 1;
     const fixturesByTeam = fixtures.length ? buildFixtureMap(fixtures, currentGw) : {};
+    const positionAvgPpg = computePositionAvgPpg(bootstrap.elements);
 
     const squadIds = new Set(picks.picks.map((p) => p.element));
     const bank = (picks.entry_history?.bank || 0) / 10;
@@ -68,7 +69,7 @@ export default function TransfersPage() {
 
     const candidates = bootstrap.elements.map((p) => ({
       player: p,
-      xpts: computeXPts(p, fixturesByTeam),
+      xpts: computeXPts(p, fixturesByTeam, positionAvgPpg),
       cost: p.now_cost / 10,
     }));
 
@@ -79,7 +80,7 @@ export default function TransfersPage() {
         // no minutes yet this season means no real signal to judge them on -
         // don't suggest transferring someone out before they've even played
         if (player.minutes === 0) return null;
-        const outXpts = computeXPts(player, fixturesByTeam);
+        const outXpts = computeXPts(player, fixturesByTeam, positionAvgPpg);
         const budget  = player.now_cost / 10 + bank;
 
         const best = candidates
