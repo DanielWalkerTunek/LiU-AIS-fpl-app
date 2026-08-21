@@ -6,6 +6,37 @@ import { Pitch, PlayerToken, POS_COLOR } from '../components/Pitch';
 
 const POSITION_MAP = { 1: 'GKP', 2: 'DEF', 3: 'MID', 4: 'FWD' };
 
+function buildSuggestions({ picks, playerMap, fixturesByTeam, positionAvgPpg, bank, squadIds, window }) {
+  const candidates = Object.values(playerMap).map((p) => ({
+    player: p,
+    xpts: computeXPts(p, fixturesByTeam, positionAvgPpg, window),
+    cost: p.now_cost / 10,
+  }));
+
+  return picks
+    .map((pick) => {
+      const player = playerMap[pick.element];
+      if (!player) return null;
+      // no minutes yet this season means no real signal to judge them on -
+      // don't suggest transferring someone out before they've even played
+      if (player.minutes === 0) return null;
+      const outXpts = computeXPts(player, fixturesByTeam, positionAvgPpg, window);
+      const budget  = player.now_cost / 10 + bank;
+
+      const best = candidates
+        .filter((c) => c.player.element_type === player.element_type)
+        .filter((c) => !squadIds.has(c.player.id))
+        .filter((c) => c.cost <= budget)
+        .sort((a, b) => b.xpts - a.xpts)[0];
+
+      if (!best || best.xpts <= outXpts + 0.5) return null;
+      return { out: player, outXpts, in: best.player, inXpts: best.xpts, delta: best.xpts - outXpts };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.delta - a.delta)
+    .slice(0, 2);
+}
+
 export default function TransfersPage() {
   const { user, profile } = useOutletContext();
   const fplId = profile?.fpl_manager_id;
@@ -49,8 +80,9 @@ export default function TransfersPage() {
     load();
   }, [fplId]);
 
-  const { starting, bench, teamMap, playerMap, suggestions } = useMemo(() => {
-    if (!bootstrap || !picks) return { starting: [], bench: [], teamMap: {}, playerMap: {}, suggestions: [] };
+  const { starting, bench, teamMap, playerMap, hotSuggestions, longTermSuggestions } = useMemo(() => {
+    if (!bootstrap || !picks)
+      return { starting: [], bench: [], teamMap: {}, playerMap: {}, hotSuggestions: [], longTermSuggestions: [] };
 
     const teamMap   = Object.fromEntries(bootstrap.teams.map((t) => [t.id, t]));
     const playerMap = Object.fromEntries(bootstrap.elements.map((p) => [p.id, p]));
@@ -67,36 +99,11 @@ export default function TransfersPage() {
     const starting = picks.picks.filter((p) => p.position <= 11);
     const bench    = picks.picks.filter((p) => p.position > 11).sort((a, b) => a.position - b.position);
 
-    const candidates = bootstrap.elements.map((p) => ({
-      player: p,
-      xpts: computeXPts(p, fixturesByTeam, positionAvgPpg),
-      cost: p.now_cost / 10,
-    }));
+    const args = { picks: picks.picks, playerMap, fixturesByTeam, positionAvgPpg, bank, squadIds };
+    const hotSuggestions      = buildSuggestions({ ...args, window: 1 });
+    const longTermSuggestions = buildSuggestions({ ...args, window: 5 });
 
-    const suggestions = picks.picks
-      .map((pick) => {
-        const player = playerMap[pick.element];
-        if (!player) return null;
-        // no minutes yet this season means no real signal to judge them on -
-        // don't suggest transferring someone out before they've even played
-        if (player.minutes === 0) return null;
-        const outXpts = computeXPts(player, fixturesByTeam, positionAvgPpg);
-        const budget  = player.now_cost / 10 + bank;
-
-        const best = candidates
-          .filter((c) => c.player.element_type === player.element_type)
-          .filter((c) => !squadIds.has(c.player.id))
-          .filter((c) => c.cost <= budget)
-          .sort((a, b) => b.xpts - a.xpts)[0];
-
-        if (!best || best.xpts <= outXpts + 0.5) return null;
-        return { out: player, outXpts, in: best.player, inXpts: best.xpts, delta: best.xpts - outXpts };
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.delta - a.delta)
-      .slice(0, 2);
-
-    return { starting, bench, teamMap, playerMap, suggestions };
+    return { starting, bench, teamMap, playerMap, hotSuggestions, longTermSuggestions };
   }, [bootstrap, fixtures, picks]);
 
   const livePoints = Object.fromEntries(
@@ -144,21 +151,42 @@ export default function TransfersPage() {
             </div>
           </div>
 
-          <div className="card">
-            <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-3">
-              Suggested Transfers
-            </h2>
-            {suggestions.length === 0 ? (
-              <p className="text-sm text-liu-muted font-mono py-4 text-center">
-                No clear upgrades within budget right now.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {suggestions.map((s, i) => (
-                  <SuggestionCard key={i} suggestion={s} teamMap={teamMap} />
-                ))}
-              </div>
-            )}
+          <div className="space-y-4">
+            <div className="card">
+              <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-0.5">
+                🔥 Hot Transfers
+              </h2>
+              <p className="text-[11px] text-liu-muted font-mono mb-3">Next gameweek only</p>
+              {hotSuggestions.length === 0 ? (
+                <p className="text-sm text-liu-muted font-mono py-4 text-center">
+                  No clear upgrades within budget right now.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {hotSuggestions.map((s, i) => (
+                    <SuggestionCard key={i} suggestion={s} teamMap={teamMap} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="card">
+              <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-0.5">
+                Long Term Transfers
+              </h2>
+              <p className="text-[11px] text-liu-muted font-mono mb-3">Next 5 fixtures</p>
+              {longTermSuggestions.length === 0 ? (
+                <p className="text-sm text-liu-muted font-mono py-4 text-center">
+                  No clear upgrades within budget right now.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {longTermSuggestions.map((s, i) => (
+                    <SuggestionCard key={i} suggestion={s} teamMap={teamMap} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

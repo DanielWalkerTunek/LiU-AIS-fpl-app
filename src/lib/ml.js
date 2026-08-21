@@ -10,9 +10,10 @@
 //                   wildly inflated projection, so early on the position
 //                   average dominates and raw_base earns more trust as
 //                   appearances accumulate (5 starts ≈ 50/50 trust).
-// fixture_factor  : 1.15 (FDR 1, easiest) … 0.75 (FDR 5, hardest) over the
-//                   next 3 fixtures — fixtures nudge the projection, they
-//                   shouldn't swamp a player's underlying quality
+// fixture_factor  : 1.15 (FDR 1, easiest) … 0.75 (FDR 5, hardest) averaged
+//                   over the next `fixtureWindow` fixtures (default 3) —
+//                   fixtures nudge the projection, they shouldn't swamp a
+//                   player's underlying quality
 // availability    : 1.0 fit | chance/100 doubtful | 0.0 injured/suspended
 
 function fixtureScore(upcoming, n = 3) {
@@ -44,7 +45,7 @@ export function computePositionAvgPpg(elements) {
   return avg;
 }
 
-export function computeXPts(player, fixturesByTeam, positionAvgPpg = {}) {
+export function computeXPts(player, fixturesByTeam, positionAvgPpg = {}, fixtureWindow = 3) {
   const ppg   = parseFloat(player.points_per_game) || 0;
   const form  = parseFloat(player.form) || 0;
   const games = player.starts || 0;
@@ -62,7 +63,7 @@ export function computeXPts(player, fixturesByTeam, positionAvgPpg = {}) {
     base = trust * rawBase + (1 - trust) * prior;
   }
 
-  const fScore = fixtureScore(fixturesByTeam[player.team] || []);
+  const fScore = fixtureScore(fixturesByTeam[player.team] || [], fixtureWindow);
   const avail = availabilityFactor(player);
   return Math.round(base * fScore * avail * 10) / 10;
 }
