@@ -14,7 +14,7 @@ function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn }) {
     cost: p.now_cost / 10,
   }));
 
-  return picks
+  const ranked = picks
     .map((pick) => {
       const player = playerMap[pick.element];
       if (!player) return null;
@@ -34,8 +34,19 @@ function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn }) {
       return { out: player, outScore, in: best.player, inScore: best.score, delta: best.score - outScore };
     })
     .filter(Boolean)
-    .sort((a, b) => b.delta - a.delta)
-    .slice(0, 2);
+    .sort((a, b) => b.delta - a.delta);
+
+  // Don't suggest buying the same replacement twice within one list — take
+  // the next-best distinct "in" player instead of a duplicate.
+  const seenIn = new Set();
+  const result = [];
+  for (const s of ranked) {
+    if (seenIn.has(s.in.id)) continue;
+    seenIn.add(s.in.id);
+    result.push(s);
+    if (result.length === 2) break;
+  }
+  return result;
 }
 
 export default function TransfersPage() {
