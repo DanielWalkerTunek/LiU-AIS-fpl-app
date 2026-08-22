@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { getBootstrap, getFixtures } from '../lib/fpl-api';
-import { buildFixtureMap, computeXPts, computePositionAvgPpg } from '../lib/ml';
+import { buildFixtureMap, computeXPts, computePositionAvgPpg, FDR_BG, FDR_TEXT } from '../lib/ml';
 
 const POSITION_MAP   = { 1: 'GKP', 2: 'DEF', 3: 'MID', 4: 'FWD' };
 const POSITION_COLOR = {
@@ -34,10 +34,6 @@ const COMPARE_STATS  = [
   { key: 'bonus',           label: 'Bonus' },
   { key: 'points_per_game', label: 'PPG' },
 ];
-// FDR 1-5: green → red
-const FDR_BG   = ['', '#16a34a', '#65a30d', '#ca8a04', '#ea580c', '#dc2626'];
-const FDR_TEXT = ['', '#fff',    '#fff',    '#fff',    '#fff',    '#fff'];
-
 export default function PlayersPage() {
   const [bootstrap,   setBootstrap]   = useState(null);
   const [fixtures,    setFixtures]    = useState([]);
@@ -148,7 +144,7 @@ export default function PlayersPage() {
                 contentStyle={{
                   background: '#070f1d',
                   border: '1px solid rgba(64,196,255,0.2)',
-                  borderRadius: '10px',
+                  borderRadius: '6px',
                   fontSize: 12,
                   fontFamily: 'Geist Mono',
                 }}
@@ -316,7 +312,7 @@ export default function PlayersPage() {
                         return (
                           <div
                             key={i}
-                            title={`${f.isHome ? 'H' : 'A'} · FDR ${f.difficulty}`}
+                            title={`${f.isHome ? 'H' : 'A'} | FDR ${f.difficulty}`}
                             className="w-8 text-center text-[10px] font-mono font-bold rounded py-0.5"
                             style={{
                               background: FDR_BG[f.difficulty] || '#334155',

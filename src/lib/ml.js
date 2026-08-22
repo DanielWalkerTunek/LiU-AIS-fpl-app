@@ -16,11 +16,19 @@
 //                   player's underlying quality
 // availability    : 1.0 fit | chance/100 doubtful | 0.0 injured/suspended
 
+// FDR 1-5: green → red — shared by any fixture-chip UI.
+export const FDR_BG   = ['', '#16a34a', '#65a30d', '#ca8a04', '#ea580c', '#dc2626'];
+export const FDR_TEXT = ['', '#fff',    '#fff',    '#fff',    '#fff',    '#fff'];
+
+function fixtureFactorForDifficulty(difficulty) {
+  return 1.15 - (difficulty - 1) * 0.1;
+}
+
 function fixtureScore(upcoming, n = 3) {
   if (!upcoming.length) return 0.95;
   const slice = upcoming.slice(0, n);
   const avg = slice.reduce((s, f) => s + f.difficulty, 0) / slice.length;
-  return 1.15 - (avg - 1) * 0.1;
+  return fixtureFactorForDifficulty(avg);
 }
 
 function availabilityFactor(player) {
@@ -45,7 +53,10 @@ export function computePositionAvgPpg(elements) {
   return avg;
 }
 
-export function computeXPts(player, fixturesByTeam, positionAvgPpg = {}, fixtureWindow = 3) {
+// Per-game expected points, shrunk toward the position average early in the
+// season — the shared foundation both computeXPts and
+// computeFixtureBreakdown scale by fixture difficulty.
+function stabilizedBase(player, positionAvgPpg) {
   const ppg   = parseFloat(player.points_per_game) || 0;
   const form  = parseFloat(player.form) || 0;
   const games = player.starts || 0;
@@ -56,16 +67,35 @@ export function computeXPts(player, fixturesByTeam, positionAvgPpg = {}, fixture
   // no data to shrink toward a real prediction either. Falling back to the
   // position average here would rank every unused squad player above proven
   // in-form starters, so leave them at 0 rather than inventing a score.
-  let base = rawBase;
-  if (player.minutes > 0) {
-    const prior = positionAvgPpg[player.element_type] ?? rawBase;
-    const trust = games / (games + 5);
-    base = trust * rawBase + (1 - trust) * prior;
-  }
+  if (!(player.minutes > 0)) return rawBase;
 
+  const prior = positionAvgPpg[player.element_type] ?? rawBase;
+  const trust = games / (games + 5);
+  return trust * rawBase + (1 - trust) * prior;
+}
+
+export function computeXPts(player, fixturesByTeam, positionAvgPpg = {}, fixtureWindow = 3) {
+  const base   = stabilizedBase(player, positionAvgPpg);
   const fScore = fixtureScore(fixturesByTeam[player.team] || [], fixtureWindow);
-  const avail = availabilityFactor(player);
+  const avail  = availabilityFactor(player);
   return Math.round(base * fScore * avail * 10) / 10;
+}
+
+// Per-fixture expected points over the next `n` fixtures, plus their total —
+// for showing a full run of games (long-term transfer planning) rather than
+// one fixture-averaged number.
+export function computeFixtureBreakdown(player, fixturesByTeam, positionAvgPpg = {}, n = 5) {
+  const base  = stabilizedBase(player, positionAvgPpg);
+  const avail = availabilityFactor(player);
+  const upcoming = (fixturesByTeam[player.team] || []).slice(0, n);
+
+  const fixtures = upcoming.map((f) => ({
+    ...f,
+    xpts: Math.round(base * fixtureFactorForDifficulty(f.difficulty) * avail * 10) / 10,
+  }));
+
+  const total = Math.round(fixtures.reduce((s, f) => s + f.xpts, 0) * 10) / 10;
+  return { fixtures, total };
 }
 
 // Build team → upcoming-fixture array from raw fixtures endpoint data.

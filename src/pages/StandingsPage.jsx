@@ -38,7 +38,7 @@ export default function StandingsPage() {
     load();
   }, [leagueId]);
 
-  if (!leagueId) return <Empty icon="🏆" text="Enter your league ID in settings to see standings." />;
+  if (!leagueId) return <Empty text="Enter your league ID in settings to see standings." />;
   if (loading) return <Skeleton />;
   if (error) return <ErrorCard error={error} />;
 
@@ -49,7 +49,7 @@ export default function StandingsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">{league?.name || 'League'}</h1>
         <p className="text-liu-muted text-sm font-mono mt-0.5">
-          Classic League · {standings.length} managers
+          Classic League | {standings.length} managers
         </p>
       </div>
 
@@ -147,10 +147,9 @@ function Sparkline({ data }) {
   );
 }
 
-function Empty({ icon, text }) {
+function Empty({ text }) {
   return (
     <div className="text-center py-24 text-liu-muted">
-      <p className="text-5xl mb-4">{icon}</p>
       <p className="font-mono text-sm">{text}</p>
     </div>
   );

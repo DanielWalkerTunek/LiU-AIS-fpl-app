@@ -58,7 +58,7 @@ export default function DashboardPage() {
     finally { setLoadingPicks(false); }
   }
 
-  if (!leagueId) return <Empty icon="⚽" text="Enter your league ID in settings to start tracking." />;
+  if (!leagueId) return <Empty text="Enter your league ID in settings to start tracking." />;
   if (loading) return <Skeleton />;
   if (error) return <ErrorCard error={error} />;
 
@@ -252,10 +252,9 @@ export default function DashboardPage() {
   );
 }
 
-function Empty({ icon, text }) {
+function Empty({ text }) {
   return (
     <div className="text-center py-24 text-liu-muted">
-      <p className="text-5xl mb-4">{icon}</p>
       <p className="font-mono text-sm">{text}</p>
     </div>
   );

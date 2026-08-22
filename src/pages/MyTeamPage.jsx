@@ -46,8 +46,8 @@ export default function MyTeamPage() {
     load();
   }, [fplId]);
 
-  if (!user) return <Empty icon="👤" text="Sign in to see your team." />;
-  if (!fplId) return <Empty icon="⚽" text="Add your FPL Manager ID in your profile (account button) to see your team." />;
+  if (!user) return <Empty text="Sign in to see your team." />;
+  if (!fplId) return <Empty text="Add your FPL Manager ID in your profile (account button) to see your team." />;
   if (loading) return <Skeleton />;
   if (error) return <ErrorCard error={error} />;
 
@@ -124,7 +124,7 @@ export default function MyTeamPage() {
 
           <div className="mt-4">
             <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-2">
-              Bench · {picks.entry_history?.points_on_bench} pts
+              Bench | {picks.entry_history?.points_on_bench} pts
             </h2>
             <div className="card flex justify-center gap-4 md:gap-8 flex-wrap py-5">
               {bench.map((pick) => (
@@ -144,10 +144,9 @@ export default function MyTeamPage() {
   );
 }
 
-function Empty({ icon, text }) {
+function Empty({ text }) {
   return (
     <div className="text-center py-24 text-liu-muted">
-      <p className="text-5xl mb-4">{icon}</p>
       <p className="font-mono text-sm">{text}</p>
     </div>
   );

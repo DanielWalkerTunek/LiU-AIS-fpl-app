@@ -24,7 +24,7 @@
   .card {
     background: linear-gradient(160deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
+    border-radius: 8px;
     padding: 1rem;
   }
 
@@ -40,7 +40,7 @@
     font-size: 0.875rem;
     letter-spacing: 0.04em;
     padding: 10px 24px;
-    border-radius: 10px;
+    border-radius: 6px;
     box-shadow: 0 4px 20px rgba(0, 136, 204, 0.3), 0 1px 4px rgba(0, 0, 0, 0.3);
     transition: all 0.2s ease;
     cursor: pointer;
@@ -65,7 +65,7 @@
     color: #9bdfff;
     font-size: 0.875rem;
     padding: 10px 24px;
-    border-radius: 10px;
+    border-radius: 6px;
     transition: all 0.2s ease;
     cursor: pointer;
   }

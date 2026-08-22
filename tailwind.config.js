@@ -19,6 +19,13 @@ export default {
         'liu-hero':
           'radial-gradient(55% 55% at 28% 55%, rgba(0,100,200,0.18) 0%, transparent 65%), radial-gradient(35% 35% at 70% 30%, rgba(0,160,255,0.08) 0%, transparent 55%)',
       },
+      // Sharper corners app-wide — leaves `rounded-full` (circular badges,
+      // avatars, pitch markings) untouched since that key isn't overridden.
+      borderRadius: {
+        lg:  '4px',
+        xl:  '6px',
+        '2xl': '8px',
+      },
     },
   },
   plugins: [],
