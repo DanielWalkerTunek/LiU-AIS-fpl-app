@@ -44,6 +44,12 @@ export default function StandingsPage() {
 
   const top = standings[0]?.total || 0;
 
+  // Before more than one gameweek has been played, "movement" is meaningless
+  // (there's no earlier rank to compare against), so keep it neutral for
+  // everyone rather than showing a spurious arrow off whatever last_rank
+  // defaults to pre-season.
+  const hasRankHistory = standings.some((m) => (histories[m.entry]?.length || 0) > 1);
+
   const benchWasted = standings
     .map((m) => ({
       entry: m.entry,
@@ -86,12 +92,12 @@ export default function StandingsPage() {
               <th className="py-3 pr-4 text-right">GW</th>
               <th className="py-3 pr-4 text-right">Total</th>
               <th className="py-3 pr-4 text-right hidden sm:table-cell">Gap</th>
-              <th className="py-3 pr-5 text-right w-16">Move</th>
+              <th className="py-3 pr-5 text-right w-10"></th>
             </tr>
           </thead>
           <tbody>
             {standings.map((m, idx) => {
-              const delta = m.last_rank - m.rank;
+              const delta = hasRankHistory ? m.last_rank - m.rank : 0;
               const isFirst = idx === 0;
 
               return (
@@ -130,16 +136,10 @@ export default function StandingsPage() {
         </table>
       </div>
 
-      {(benchWasted.some((m) => m.wasted > 0) || pointsHit.some((m) => m.hit > 0)) && (
-        <div className="mt-6 grid md:grid-cols-2 gap-4">
-          {benchWasted.some((m) => m.wasted > 0) && (
-            <FunTable title="Bench Points" rows={benchWasted} valueKey="wasted" />
-          )}
-          {pointsHit.some((m) => m.hit > 0) && (
-            <FunTable title="Points Hit" rows={pointsHit} valueKey="hit" />
-          )}
-        </div>
-      )}
+      <div className="mt-6 grid md:grid-cols-2 gap-4">
+        <FunTable title="Bench Points" rows={benchWasted} valueKey="wasted" />
+        <FunTable title="Points Hit" rows={pointsHit} valueKey="hit" />
+      </div>
     </div>
   );
 }
