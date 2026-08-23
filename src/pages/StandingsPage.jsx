@@ -129,8 +129,7 @@ export default function StandingsPage() {
 
       {benchWasted.some((m) => m.wasted > 0) && (
         <div className="mt-6">
-          <h2 className="text-sm font-bold tracking-tight mb-0.5">Points Wasted on Bench</h2>
-          <p className="text-liu-muted text-xs font-mono mb-3">Just for fun | season total</p>
+          <h2 className="text-sm font-bold tracking-tight mb-3">Bench Points</h2>
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
             <table className="w-full text-sm">
               <tbody>
