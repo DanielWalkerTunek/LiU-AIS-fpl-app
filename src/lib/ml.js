@@ -2,14 +2,17 @@
 //
 // xPts = stabilized_base × fixture_factor × availability_factor
 //
-// raw_base        : 0.6 × form + 0.4 × PPG, or PPG alone when form is 0 (no
-//                   minutes played yet this season)
+// raw_base        : 0.4 × form + 0.6 × PPG, or PPG alone when form is 0 (no
+//                   minutes played yet this season) — PPG is the full-season
+//                   record, form is FPL's recent-games rolling average, so
+//                   weighting PPG higher keeps one hot/cold recent game from
+//                   dominating the season-long picture
 // stabilized_base : raw_base shrunk toward the position's current-season
-//                   average PPG, weighted by games started — with only 1-2
-//                   games played, a single big haul shouldn't produce a
-//                   wildly inflated projection, so early on the position
-//                   average dominates and raw_base earns more trust as
-//                   appearances accumulate (5 starts ≈ 50/50 trust).
+//                   average PPG, weighted by games started — with only a
+//                   couple of games played, a single big haul shouldn't
+//                   produce a wildly inflated projection, so early on the
+//                   position average dominates and raw_base earns more trust
+//                   as appearances accumulate (10 starts ≈ 50/50 trust).
 // fixture_factor  : 1.15 (FDR 1, easiest) … 0.75 (FDR 5, hardest) averaged
 //                   over the next `fixtureWindow` fixtures (default 3) —
 //                   fixtures nudge the projection, they shouldn't swamp a
@@ -61,7 +64,7 @@ function stabilizedBase(player, positionAvgPpg) {
   const form  = parseFloat(player.form) || 0;
   const games = player.starts || 0;
 
-  const rawBase = form > 0 ? form * 0.6 + ppg * 0.4 : ppg;
+  const rawBase = form > 0 ? form * 0.4 + ppg * 0.6 : ppg;
 
   // Hasn't featured at all this season - there's no outlier to shrink, and
   // no data to shrink toward a real prediction either. Falling back to the
@@ -70,7 +73,7 @@ function stabilizedBase(player, positionAvgPpg) {
   if (!(player.minutes > 0)) return rawBase;
 
   const prior = positionAvgPpg[player.element_type] ?? rawBase;
-  const trust = games / (games + 5);
+  const trust = games / (games + 10);
   return trust * rawBase + (1 - trust) * prior;
 }
 

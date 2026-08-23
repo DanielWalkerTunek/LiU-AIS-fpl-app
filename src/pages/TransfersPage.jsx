@@ -7,6 +7,25 @@ import { Pitch, PlayerToken, POS_COLOR } from '../components/Pitch';
 const POSITION_MAP = { 1: 'GKP', 2: 'DEF', 3: 'MID', 4: 'FWD' };
 const LONG_TERM_WINDOW = 5;
 
+// Best affordable same-position replacement for `player`, using
+// `budget` (sale value + whatever's left in the bank) as the cap.
+function bestReplacement({ player, candidates, squadIds, excludeIds, budget, outScore }) {
+  const best = candidates
+    .filter((c) => c.player.element_type === player.element_type)
+    .filter((c) => !squadIds.has(c.player.id))
+    .filter((c) => !excludeIds.has(c.player.id))
+    .filter((c) => c.cost <= budget)
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (!best || best.score <= outScore + 0.5) return null;
+  return best;
+}
+
+// Suggests up to 2 transfers meant to be read as a pair: the second one's
+// budget is what's left of the bank after paying for the first, not a fresh
+// independent budget — so if both were made together, their combined cost
+// genuinely fits sale value of both outgoing players + the bank, same as
+// FPL actually charges you for multiple transfers in one go.
 function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn }) {
   const candidates = Object.values(playerMap).map((p) => ({
     player: p,
@@ -14,38 +33,49 @@ function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn }) {
     cost: p.now_cost / 10,
   }));
 
-  const ranked = picks
+  const outCandidates = picks
     .map((pick) => {
       const player = playerMap[pick.element];
       if (!player) return null;
       // no minutes yet this season means no real signal to judge them on -
       // don't suggest transferring someone out before they've even played
       if (player.minutes === 0) return null;
-      const outScore = scoreFn(player);
-      const budget   = player.now_cost / 10 + bank;
+      return { player, outScore: scoreFn(player), sellPrice: player.now_cost / 10 };
+    })
+    .filter(Boolean);
 
-      const best = candidates
-        .filter((c) => c.player.element_type === player.element_type)
-        .filter((c) => !squadIds.has(c.player.id))
-        .filter((c) => c.cost <= budget)
-        .sort((a, b) => b.score - a.score)[0];
-
-      if (!best || best.score <= outScore + 0.5) return null;
-      return { out: player, outScore, in: best.player, inScore: best.score, delta: best.score - outScore };
+  // Priority order: which outgoing player has the biggest available upgrade,
+  // judged as if it were the only transfer (bank alone as budget).
+  const priority = outCandidates
+    .map((o) => {
+      const best = bestReplacement({
+        player: o.player, candidates, squadIds, excludeIds: new Set(),
+        budget: o.sellPrice + bank, outScore: o.outScore,
+      });
+      return best ? { ...o, delta: best.score - o.outScore } : null;
     })
     .filter(Boolean)
     .sort((a, b) => b.delta - a.delta);
 
-  // Don't suggest buying the same replacement twice within one list — take
-  // the next-best distinct "in" player instead of a duplicate.
-  const seenIn = new Set();
   const result = [];
-  for (const s of ranked) {
-    if (seenIn.has(s.in.id)) continue;
-    seenIn.add(s.in.id);
-    result.push(s);
+  const usedIn = new Set();
+  let remainingBank = bank;
+
+  for (const o of priority) {
     if (result.length === 2) break;
+    // Re-pick with what's actually left, since an earlier pick in this same
+    // pair may have already spent some of the shared budget.
+    const best = bestReplacement({
+      player: o.player, candidates, squadIds, excludeIds: usedIn,
+      budget: o.sellPrice + remainingBank, outScore: o.outScore,
+    });
+    if (!best) continue;
+
+    usedIn.add(best.player.id);
+    remainingBank -= (best.cost - o.sellPrice);
+    result.push({ out: o.player, outScore: o.outScore, in: best.player, inScore: best.score, delta: best.score - o.outScore });
   }
+
   return result;
 }
 
