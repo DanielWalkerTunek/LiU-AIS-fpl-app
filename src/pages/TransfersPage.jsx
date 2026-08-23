@@ -21,12 +21,15 @@ function bestReplacement({ player, candidates, squadIds, excludeIds, budget, out
   return best;
 }
 
-// Suggests up to 2 transfers meant to be read as a pair: the second one's
-// budget is what's left of the bank after paying for the first, not a fresh
-// independent budget — so if both were made together, their combined cost
-// genuinely fits sale value of both outgoing players + the bank, same as
-// FPL actually charges you for multiple transfers in one go.
-function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn }) {
+// Suggests up to `maxTransfers` transfers meant to be read as a package: each
+// one's budget is what's left of the bank after paying for the ones before
+// it, not a fresh independent budget — so if they were all made together,
+// their combined cost genuinely fits the sale value of every outgoing
+// player + the bank, same as FPL actually charges for multiple transfers in
+// one go. Capped at maxTransfers so it never suggests more transfers than
+// the user has free — an extra transfer costs -4pts, and the point is to
+// avoid a hit, not spend one recommending it.
+function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn, maxTransfers }) {
   const candidates = Object.values(playerMap).map((p) => ({
     player: p,
     score: scoreFn(p),
@@ -62,9 +65,9 @@ function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn }) {
   let remainingBank = bank;
 
   for (const o of priority) {
-    if (result.length === 2) break;
+    if (result.length === maxTransfers) break;
     // Re-pick with what's actually left, since an earlier pick in this same
-    // pair may have already spent some of the shared budget.
+    // package may have already spent some of the shared budget.
     const best = bestReplacement({
       player: o.player, candidates, squadIds, excludeIds: usedIn,
       budget: o.sellPrice + remainingBank, outScore: o.outScore,
@@ -73,7 +76,11 @@ function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn }) {
 
     usedIn.add(best.player.id);
     remainingBank -= (best.cost - o.sellPrice);
-    result.push({ out: o.player, outScore: o.outScore, in: best.player, inScore: best.score, delta: best.score - o.outScore });
+    result.push({
+      out: o.player, outScore: o.outScore, sellPrice: o.sellPrice,
+      in: best.player, inScore: best.score, cost: best.cost,
+      delta: best.score - o.outScore,
+    });
   }
 
   return result;
@@ -90,6 +97,8 @@ export default function TransfersPage() {
   const [picks,      setPicks]      = useState(null);
   const [picksError, setPicksError] = useState(null);
   const [liveData,   setLiveData]   = useState(null);
+  const [freeTransfers, setFreeTransfers] = useState(1);
+  const [showExplainer, setShowExplainer] = useState(false);
 
   useEffect(() => {
     if (!fplId) { setLoading(false); return; }
@@ -141,7 +150,7 @@ export default function TransfersPage() {
     const starting = picks.picks.filter((p) => p.position <= 11);
     const bench    = picks.picks.filter((p) => p.position > 11).sort((a, b) => a.position - b.position);
 
-    const args = { picks: picks.picks, playerMap, squadIds, bank };
+    const args = { picks: picks.picks, playerMap, squadIds, bank, maxTransfers: freeTransfers };
 
     const hotSuggestions = buildSuggestions({
       ...args,
@@ -158,7 +167,7 @@ export default function TransfersPage() {
     }));
 
     return { starting, bench, teamMap, playerMap, hotSuggestions, longTermSuggestions };
-  }, [bootstrap, fixtures, picks]);
+  }, [bootstrap, fixtures, picks, freeTransfers]);
 
   const livePoints = Object.fromEntries(
     (liveData?.elements || []).map((el) => [el.id, el.stats.total_points])
@@ -172,10 +181,53 @@ export default function TransfersPage() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold tracking-tight">Transfers</h1>
-        <p className="text-liu-muted text-sm font-mono mt-0.5">
-          Suggestions based on the xPts model | red ! = price dropping | green up arrow = in form
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Transfers</h1>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-liu-muted text-xs font-mono uppercase tracking-widest">Free Transfers</span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setFreeTransfers(n)}
+                    className="w-7 h-7 text-xs font-mono font-bold transition-all"
+                    style={
+                      freeTransfers === n
+                        ? { background: 'linear-gradient(135deg,#0070bb,#09ddff)', color: '#fff' }
+                        : { background: 'rgba(255,255,255,0.05)', color: '#7a94b0', border: '1px solid rgba(255,255,255,0.06)' }
+                    }
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowExplainer((v) => !v)}
+              title="How these suggestions work"
+              className="w-7 h-7 rounded-full text-xs font-bold font-mono transition-all shrink-0"
+              style={
+                showExplainer
+                  ? { background: 'rgba(64,196,255,0.18)', color: '#40c4ff', border: '1px solid rgba(64,196,255,0.4)' }
+                  : { background: 'rgba(255,255,255,0.05)', color: '#7a94b0', border: '1px solid rgba(255,255,255,0.08)' }
+              }
+            >
+              ?
+            </button>
+          </div>
+        </div>
+
+        {showExplainer && (
+          <div
+            className="mt-3 px-5 py-4 rounded-lg text-xs font-mono leading-relaxed space-y-1.5"
+            style={{ background: 'rgba(64,196,255,0.06)', border: '1px solid rgba(64,196,255,0.15)', color: '#9bdfff' }}
+          >
+            <p>Suggestions are based on the xPts model.</p>
+            <p>Red ! = price dropping | Green up arrow = in form</p>
+            <p>Only as many transfers are suggested as your Free Transfers count above, priced as a package — so making all of them together shouldn't cost a points hit.</p>
+          </div>
+        )}
       </div>
 
       {picksError && (
@@ -248,8 +300,18 @@ export default function TransfersPage() {
   );
 }
 
+function NetCost({ sellPrice, cost }) {
+  const net = Math.round((cost - sellPrice) * 10) / 10;
+  if (net === 0) return <span className="text-xs font-mono text-liu-muted">£0.0m</span>;
+  return (
+    <span className="text-xs font-mono font-semibold" style={{ color: net > 0 ? '#f87171' : '#22c55e' }}>
+      {net > 0 ? `-£${net.toFixed(1)}m` : `+£${Math.abs(net).toFixed(1)}m`}
+    </span>
+  );
+}
+
 function HotSuggestionCard({ suggestion, teamMap }) {
-  const { out, in: inPlayer, outScore, inScore, delta } = suggestion;
+  const { out, in: inPlayer, outScore, inScore, delta, sellPrice, cost } = suggestion;
   const pos = POSITION_MAP[out.element_type];
   const pc = POS_COLOR[out.element_type];
 
@@ -262,19 +324,22 @@ function HotSuggestionCard({ suggestion, teamMap }) {
         >
           {pos}
         </span>
-        <span className="text-xs font-mono font-bold" style={{ color: '#40c4ff' }}>+{delta.toFixed(1)} xPts</span>
+        <div className="flex items-center gap-2">
+          <NetCost sellPrice={sellPrice} cost={cost} />
+          <span className="text-xs font-mono font-bold" style={{ color: '#40c4ff' }}>+{delta.toFixed(1)} xPts</span>
+        </div>
       </div>
       <div className="flex items-center justify-between text-sm">
         <div className="min-w-0">
           <div className="text-liu-muted text-xs font-mono uppercase tracking-widest">Out</div>
           <div className="font-medium text-white truncate">{out.web_name}</div>
-          <div className="text-xs text-liu-muted font-mono">{teamMap[out.team]?.short_name} | {outScore} xPts</div>
+          <div className="text-xs text-liu-muted font-mono">{teamMap[out.team]?.short_name} | £{sellPrice}m | {outScore} xPts</div>
         </div>
         <div className="text-liu-muted px-2">→</div>
         <div className="min-w-0 text-right">
           <div className="text-liu-muted text-xs font-mono uppercase tracking-widest">In</div>
           <div className="font-medium text-white truncate">{inPlayer.web_name}</div>
-          <div className="text-xs text-liu-muted font-mono">{teamMap[inPlayer.team]?.short_name} | {inScore} xPts</div>
+          <div className="text-xs text-liu-muted font-mono">{teamMap[inPlayer.team]?.short_name} | £{cost}m | {inScore} xPts</div>
         </div>
       </div>
     </div>
@@ -305,7 +370,7 @@ function FixtureRow({ breakdown, teamMap }) {
 }
 
 function LongTermSuggestionCard({ suggestion, teamMap }) {
-  const { out, in: inPlayer, outBreakdown, inBreakdown, delta } = suggestion;
+  const { out, in: inPlayer, outBreakdown, inBreakdown, delta, sellPrice, cost } = suggestion;
   const pos = POSITION_MAP[out.element_type];
   const pc = POS_COLOR[out.element_type];
 
@@ -318,14 +383,17 @@ function LongTermSuggestionCard({ suggestion, teamMap }) {
         >
           {pos}
         </span>
-        <span className="text-xs font-mono font-bold" style={{ color: '#40c4ff' }}>+{delta.toFixed(1)} total xPts</span>
+        <div className="flex items-center gap-2">
+          <NetCost sellPrice={sellPrice} cost={cost} />
+          <span className="text-xs font-mono font-bold" style={{ color: '#40c4ff' }}>+{delta.toFixed(1)} total xPts</span>
+        </div>
       </div>
 
       <div className="mb-2">
         <div className="flex items-baseline justify-between mb-1">
           <span className="text-liu-muted text-xs font-mono uppercase tracking-widest">Out</span>
           <span className="font-medium text-white text-sm truncate">{out.web_name}</span>
-          <span className="text-liu-muted text-xs font-mono">{outBreakdown.total} total</span>
+          <span className="text-liu-muted text-xs font-mono">£{sellPrice}m | {outBreakdown.total} total</span>
         </div>
         <FixtureRow breakdown={outBreakdown} teamMap={teamMap} />
       </div>
@@ -334,7 +402,7 @@ function LongTermSuggestionCard({ suggestion, teamMap }) {
         <div className="flex items-baseline justify-between mb-1">
           <span className="text-liu-muted text-xs font-mono uppercase tracking-widest">In</span>
           <span className="font-medium text-white text-sm truncate">{inPlayer.web_name}</span>
-          <span className="text-liu-muted text-xs font-mono">{inBreakdown.total} total</span>
+          <span className="text-liu-muted text-xs font-mono">£{cost}m | {inBreakdown.total} total</span>
         </div>
         <FixtureRow breakdown={inBreakdown} teamMap={teamMap} />
       </div>
