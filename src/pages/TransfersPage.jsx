@@ -296,41 +296,45 @@ export default function TransfersPage() {
           </div>
 
           <div className="space-y-4">
-            <div className="card">
-              <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-0.5">
-                Hot Transfers
-              </h2>
-              <p className="text-[11px] text-liu-muted font-mono mb-3">Next gameweek only</p>
-              {hotSuggestions.length === 0 ? (
-                <p className="text-sm text-liu-muted font-mono py-4 text-center">
-                  No clear upgrades within budget right now.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {hotSuggestions.map((s, i) => (
-                    <HotSuggestionCard key={i} suggestion={s} teamMap={teamMap} />
-                  ))}
-                </div>
-              )}
-            </div>
+            {transferMode !== 'wildcard' && (
+              <div className="card">
+                <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-0.5">
+                  Hot Transfers
+                </h2>
+                <p className="text-[11px] text-liu-muted font-mono mb-3">Next gameweek only</p>
+                {hotSuggestions.length === 0 ? (
+                  <p className="text-sm text-liu-muted font-mono py-4 text-center">
+                    No clear upgrades within budget right now.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {hotSuggestions.map((s, i) => (
+                      <HotSuggestionCard key={i} suggestion={s} teamMap={teamMap} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-            <div className="card">
-              <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-0.5">
-                Long Term Transfers
-              </h2>
-              <p className="text-[11px] text-liu-muted font-mono mb-3">Next {LONG_TERM_WINDOW} fixtures</p>
-              {longTermSuggestions.length === 0 ? (
-                <p className="text-sm text-liu-muted font-mono py-4 text-center">
-                  No clear upgrades within budget right now.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {longTermSuggestions.map((s, i) => (
-                    <LongTermSuggestionCard key={i} suggestion={s} teamMap={teamMap} />
-                  ))}
-                </div>
-              )}
-            </div>
+            {transferMode !== 'freehit' && (
+              <div className="card">
+                <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-0.5">
+                  Long Term Transfers
+                </h2>
+                <p className="text-[11px] text-liu-muted font-mono mb-3">Next {LONG_TERM_WINDOW} fixtures</p>
+                {longTermSuggestions.length === 0 ? (
+                  <p className="text-sm text-liu-muted font-mono py-4 text-center">
+                    No clear upgrades within budget right now.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {longTermSuggestions.map((s, i) => (
+                      <LongTermSuggestionCard key={i} suggestion={s} teamMap={teamMap} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
