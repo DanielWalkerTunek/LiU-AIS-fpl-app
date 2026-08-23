@@ -44,6 +44,15 @@ export default function StandingsPage() {
 
   const top = standings[0]?.total || 0;
 
+  const benchWasted = standings
+    .map((m) => ({
+      entry: m.entry,
+      player_name: m.player_name,
+      entry_name: m.entry_name,
+      wasted: (histories[m.entry] || []).reduce((sum, h) => sum + (h.points_on_bench || 0), 0),
+    }))
+    .sort((a, b) => b.wasted - a.wasted);
+
   return (
     <div>
       <div className="mb-6">
@@ -117,6 +126,34 @@ export default function StandingsPage() {
           </tbody>
         </table>
       </div>
+
+      {benchWasted.some((m) => m.wasted > 0) && (
+        <div className="mt-6">
+          <h2 className="text-sm font-bold tracking-tight mb-0.5">Points Wasted on Bench</h2>
+          <p className="text-liu-muted text-xs font-mono mb-3">Just for fun | season total</p>
+          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <table className="w-full text-sm">
+              <tbody>
+                {benchWasted.map((m, idx) => (
+                  <tr
+                    key={m.entry}
+                    style={{ borderBottom: idx < benchWasted.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                  >
+                    <td className="py-2.5 pl-5 w-8 text-liu-muted font-mono text-xs">{idx + 1}</td>
+                    <td className="py-2.5">
+                      <div className="font-medium text-white">{m.player_name}</div>
+                      <div className="text-xs text-liu-muted font-mono">{m.entry_name}</div>
+                    </td>
+                    <td className="py-2.5 pr-5 text-right font-bold font-mono" style={{ color: idx === 0 ? '#f87171' : '#7a94b0' }}>
+                      {m.wasted} pts
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

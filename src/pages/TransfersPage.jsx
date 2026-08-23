@@ -278,8 +278,17 @@ export default function TransfersPage() {
             <Pitch picks={starting} playerMap={playerMap} teamMap={teamMap} livePoints={livePoints} />
 
             <div className="mt-4">
-              <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-2">
-                Bench | {picks.entry_history?.points_on_bench} pts
+              <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-2 flex items-center gap-2">
+                <span>Bench | {picks.entry_history?.points_on_bench} pts</span>
+                {picks.active_chip === 'bboost' && (
+                  <span
+                    title="Bench Boost active — these points already count toward your total"
+                    className="px-1.5 py-0.5 text-[10px] font-bold tracking-widest normal-case"
+                    style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}
+                  >
+                    BBOOST
+                  </span>
+                )}
               </h2>
               <div className="card flex justify-center gap-4 md:gap-8 flex-wrap py-5">
                 {bench.map((pick) => (
