@@ -11,7 +11,13 @@ export function useAuth() {
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // getSession() can hang indefinitely after a page reload (a known
+    // supabase-js issue around its cross-tab session lock) - fall back to
+    // "signed out" rather than leaving the sidebar stuck with no sign-in
+    // state forever.
+    const timedOut = new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 8000));
+
+    Promise.race([supabase.auth.getSession(), timedOut]).then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         setProfileLoading(true);
