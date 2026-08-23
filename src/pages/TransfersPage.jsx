@@ -97,8 +97,12 @@ export default function TransfersPage() {
   const [picks,      setPicks]      = useState(null);
   const [picksError, setPicksError] = useState(null);
   const [liveData,   setLiveData]   = useState(null);
-  const [freeTransfers, setFreeTransfers] = useState(1);
+  const [transferMode, setTransferMode] = useState(1); // 1 | 2 | 3 | 4 | 'wildcard' | 'freehit'
   const [showExplainer, setShowExplainer] = useState(false);
+
+  const isChip = transferMode === 'wildcard' || transferMode === 'freehit';
+  const maxTransfers = isChip ? 15 : transferMode;
+  const pointsHit = !isChip && transferMode > 2 ? (transferMode - 2) * 4 : 0;
 
   useEffect(() => {
     if (!fplId) { setLoading(false); return; }
@@ -150,7 +154,7 @@ export default function TransfersPage() {
     const starting = picks.picks.filter((p) => p.position <= 11);
     const bench    = picks.picks.filter((p) => p.position > 11).sort((a, b) => a.position - b.position);
 
-    const args = { picks: picks.picks, playerMap, squadIds, bank, maxTransfers: freeTransfers };
+    const args = { picks: picks.picks, playerMap, squadIds, bank, maxTransfers };
 
     const hotSuggestions = buildSuggestions({
       ...args,
@@ -167,7 +171,7 @@ export default function TransfersPage() {
     }));
 
     return { starting, bench, teamMap, playerMap, hotSuggestions, longTermSuggestions };
-  }, [bootstrap, fixtures, picks, freeTransfers]);
+  }, [bootstrap, fixtures, picks, maxTransfers]);
 
   const livePoints = Object.fromEntries(
     (liveData?.elements || []).map((el) => [el.id, el.stats.total_points])
@@ -184,24 +188,52 @@ export default function TransfersPage() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-2xl font-bold tracking-tight">Transfers</h1>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-liu-muted text-xs font-mono uppercase tracking-widest">Free Transfers</span>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setFreeTransfers(n)}
-                    className="w-7 h-7 text-xs font-mono font-bold transition-all"
-                    style={
-                      freeTransfers === n
-                        ? { background: 'linear-gradient(135deg,#0070bb,#09ddff)', color: '#fff' }
-                        : { background: 'rgba(255,255,255,0.05)', color: '#7a94b0', border: '1px solid rgba(255,255,255,0.06)' }
-                    }
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-1">
+              {[1, 2].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setTransferMode(n)}
+                  className="w-7 h-7 text-xs font-mono font-bold transition-all"
+                  style={
+                    transferMode === n
+                      ? { background: 'linear-gradient(135deg,#0070bb,#09ddff)', color: '#fff' }
+                      : { background: 'rgba(255,255,255,0.05)', color: '#7a94b0', border: '1px solid rgba(255,255,255,0.06)' }
+                  }
+                >
+                  {n}
+                </button>
+              ))}
+              {[[3, -4], [4, -8]].map(([n, hit]) => (
+                <button
+                  key={n}
+                  onClick={() => setTransferMode(n)}
+                  title={`${n} transfers — ${hit}pt hit`}
+                  className="px-2 h-7 text-[11px] font-mono font-bold transition-all"
+                  style={
+                    transferMode === n
+                      ? { background: 'linear-gradient(135deg,#0070bb,#09ddff)', color: '#fff' }
+                      : { background: 'rgba(239,68,68,0.06)', color: '#f87171', border: '1px solid rgba(239,68,68,0.15)' }
+                  }
+                >
+                  {n} <span style={{ opacity: 0.8 }}>{hit}</span>
+                </button>
+              ))}
+              <div className="w-px h-5 mx-1" style={{ background: 'rgba(255,255,255,0.1)' }} />
+              {[['wildcard', 'WC'], ['freehit', 'FH']].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setTransferMode(key)}
+                  title={key === 'wildcard' ? 'Wildcard — unlimited free transfers' : 'Free Hit — unlimited transfers for one gameweek only'}
+                  className="px-2 h-7 text-[11px] font-mono font-bold uppercase tracking-widest transition-all"
+                  style={
+                    transferMode === key
+                      ? { background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', color: '#0a1120' }
+                      : { background: 'rgba(251,191,36,0.06)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }
+                  }
+                >
+                  {label}
+                </button>
+              ))}
             </div>
             <button
               onClick={() => setShowExplainer((v) => !v)}
@@ -225,8 +257,14 @@ export default function TransfersPage() {
           >
             <p>Suggestions are based on the xPts model.</p>
             <p>Red ! = price dropping | Green up arrow = in form</p>
-            <p>Only as many transfers are suggested as your Free Transfers count above, priced as a package — so making all of them together shouldn't cost a points hit.</p>
+            <p>1 / 2 = free transfers, priced as a package so making them together costs nothing extra. 3 / 4 include the points hit for going beyond 2. WC / FH (Wildcard / Free Hit) assume unlimited free transfers.</p>
           </div>
+        )}
+
+        {pointsHit > 0 && (
+          <p className="mt-2 text-xs font-mono" style={{ color: '#f87171' }}>
+            Includes a {pointsHit}pt hit for going beyond 2 free transfers.
+          </p>
         )}
       </div>
 
