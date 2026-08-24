@@ -169,15 +169,20 @@ export default function TransfersPage() {
     const starting = picks.picks.filter((p) => p.position <= 11);
     const bench    = picks.picks.filter((p) => p.position > 11).sort((a, b) => a.position - b.position);
 
-    const args = { picks: picks.picks, playerMap, squadIds, bank, maxTransfers, gwSoFar };
+    const args = { playerMap, squadIds, bank, maxTransfers, gwSoFar };
 
+    // Hot/Long Term only care about points, and only your starting 11 score
+    // points (bench players' scores don't count unless auto-subbed in) — so
+    // only they're worth suggesting a transfer for here.
     const hotSuggestions = buildSuggestions({
       ...args,
+      picks: starting,
       scoreFn: (p) => computeXPts(p, fixturesByTeam, positionAvgPpg, 1),
     });
 
     const longTermSuggestions = buildSuggestions({
       ...args,
+      picks: starting,
       scoreFn: (p) => computeFixtureBreakdown(p, fixturesByTeam, positionAvgPpg, LONG_TERM_WINDOW).total,
     }).map((s) => ({
       ...s,
@@ -187,9 +192,11 @@ export default function TransfersPage() {
 
     // Bench Boost isn't about who scores most, it's about making sure all 15
     // shirts are actually on the pitch — rank by playing likelihood instead
-    // of xPts, and use a much larger minGain since the score is 0-100.
+    // of xPts, use a much larger minGain since the score is 0-100, and
+    // consider the full 15 since bench points count too under this chip.
     const bboostSuggestions = buildSuggestions({
       ...args,
+      picks: picks.picks,
       scoreFn: (p) => computePlayingLikelihood(p, gwSoFar),
       minGain: 10,
     });
