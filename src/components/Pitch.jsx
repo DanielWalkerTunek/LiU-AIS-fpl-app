@@ -89,10 +89,10 @@ export function PlayerToken({ pick, player, team, livePoints }) {
     <div className="flex flex-col items-center gap-1 w-16 md:w-20">
       <div className="relative">
         <div
-          className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shrink-0 p-1.5"
-          style={{ background: 'rgba(255,255,255,0.92)', boxShadow: '0 2px 8px rgba(0,0,0,0.35)' }}
+          className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center shrink-0"
+          style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
         >
-          <TeamBadge team={team} className="w-full h-full object-contain" style={{ color: '#0a1120', fontSize: '10px' }} />
+          <TeamBadge team={team} className="w-full h-full object-contain" style={{ color: '#fff', fontSize: '10px' }} />
         </div>
         {(pick.is_captain || pick.is_vice_captain) && (
           <span
