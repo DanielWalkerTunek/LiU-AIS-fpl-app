@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { getBootstrap, getFixtures, getManagerPicks, getLiveGW } from '../lib/fpl-api';
-import { buildFixtureMap, computeXPts, computeFixtureBreakdown, computePositionAvgPpg, FDR_BG, FDR_TEXT } from '../lib/ml';
+import { buildFixtureMap, computeXPts, computeFixtureBreakdown, computePositionAvgPpg, computePlayingLikelihood, FDR_BG, FDR_TEXT } from '../lib/ml';
 import { Pitch, PlayerToken, POS_COLOR } from '../components/Pitch';
 
 const POSITION_MAP = { 1: 'GKP', 2: 'DEF', 3: 'MID', 4: 'FWD' };
 const LONG_TERM_WINDOW = 5;
 
 // Best affordable same-position replacement for `player`, using
-// `budget` (sale value + whatever's left in the bank) as the cap.
-function bestReplacement({ player, candidates, squadIds, excludeIds, budget, outScore }) {
+// `budget` (sale value + whatever's left in the bank) as the cap. `minGain`
+// is how much better the replacement's score must be to be worth
+// suggesting — xPts and playing-likelihood live on very different scales
+// (a couple of points vs. 0-100), so callers pick a threshold that fits.
+function bestReplacement({ player, candidates, squadIds, excludeIds, budget, outScore, minGain }) {
   const best = candidates
     .filter((c) => c.player.element_type === player.element_type)
     .filter((c) => !squadIds.has(c.player.id))
@@ -17,7 +20,7 @@ function bestReplacement({ player, candidates, squadIds, excludeIds, budget, out
     .filter((c) => c.cost <= budget)
     .sort((a, b) => b.score - a.score)[0];
 
-  if (!best || best.score <= outScore + 0.5) return null;
+  if (!best || best.score <= outScore + minGain) return null;
   return best;
 }
 
@@ -29,7 +32,7 @@ function bestReplacement({ player, candidates, squadIds, excludeIds, budget, out
 // one go. Capped at maxTransfers so it never suggests more transfers than
 // the user has free — an extra transfer costs -4pts, and the point is to
 // avoid a hit, not spend one recommending it.
-function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn, maxTransfers }) {
+function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn, maxTransfers, minGain = 0.5 }) {
   const candidates = Object.values(playerMap).map((p) => ({
     player: p,
     score: scoreFn(p),
@@ -53,7 +56,7 @@ function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn, maxTransf
     .map((o) => {
       const best = bestReplacement({
         player: o.player, candidates, squadIds, excludeIds: new Set(),
-        budget: o.sellPrice + bank, outScore: o.outScore,
+        budget: o.sellPrice + bank, outScore: o.outScore, minGain,
       });
       return best ? { ...o, delta: best.score - o.outScore } : null;
     })
@@ -70,7 +73,7 @@ function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn, maxTransf
     // package may have already spent some of the shared budget.
     const best = bestReplacement({
       player: o.player, candidates, squadIds, excludeIds: usedIn,
-      budget: o.sellPrice + remainingBank, outScore: o.outScore,
+      budget: o.sellPrice + remainingBank, outScore: o.outScore, minGain,
     });
     if (!best) continue;
 
@@ -97,11 +100,15 @@ export default function TransfersPage() {
   const [picks,      setPicks]      = useState(null);
   const [picksError, setPicksError] = useState(null);
   const [liveData,   setLiveData]   = useState(null);
-  const [transferMode, setTransferMode] = useState(1); // 1 | 2 | 3 | 4 | 'wildcard' | 'freehit'
+  const [transferMode, setTransferMode] = useState(1); // 1 | 2 | 3 | 4 | 'wildcard' | 'freehit' | 'bboost'
   const [showExplainer, setShowExplainer] = useState(false);
 
-  const isChip = transferMode === 'wildcard' || transferMode === 'freehit';
-  const maxTransfers = isChip ? 15 : transferMode;
+  const isBboost = transferMode === 'bboost';
+  const isChip = transferMode === 'wildcard' || transferMode === 'freehit' || isBboost;
+  // Wildcard/Free Hit grant unlimited transfers, so the suggestion cap
+  // effectively comes off. Bench Boost grants none - it's a scoring chip,
+  // not a transfer chip - so it's capped like a normal 2 free transfers.
+  const maxTransfers = isBboost ? 2 : isChip ? 15 : transferMode;
   const pointsHit = !isChip && transferMode > 2 ? (transferMode - 2) * 4 : 0;
 
   useEffect(() => {
@@ -135,9 +142,9 @@ export default function TransfersPage() {
     load();
   }, [fplId]);
 
-  const { starting, bench, teamMap, playerMap, hotSuggestions, longTermSuggestions } = useMemo(() => {
+  const { starting, bench, teamMap, playerMap, hotSuggestions, longTermSuggestions, bboostSuggestions } = useMemo(() => {
     if (!bootstrap || !picks)
-      return { starting: [], bench: [], teamMap: {}, playerMap: {}, hotSuggestions: [], longTermSuggestions: [] };
+      return { starting: [], bench: [], teamMap: {}, playerMap: {}, hotSuggestions: [], longTermSuggestions: [], bboostSuggestions: [] };
 
     const teamMap   = Object.fromEntries(bootstrap.teams.map((t) => [t.id, t]));
     const playerMap = Object.fromEntries(bootstrap.elements.map((p) => [p.id, p]));
@@ -148,6 +155,7 @@ export default function TransfersPage() {
       bootstrap.events.find((e) => e.is_next)?.id || 1;
     const fixturesByTeam = fixtures.length ? buildFixtureMap(fixtures, currentGw) : {};
     const positionAvgPpg = computePositionAvgPpg(bootstrap.elements);
+    const gwSoFar = bootstrap.events.filter((e) => e.finished).length;
 
     const squadIds = new Set(picks.picks.map((p) => p.element));
     const bank = (picks.entry_history?.bank || 0) / 10;
@@ -170,7 +178,16 @@ export default function TransfersPage() {
       inBreakdown:  computeFixtureBreakdown(s.in,  fixturesByTeam, positionAvgPpg, LONG_TERM_WINDOW),
     }));
 
-    return { starting, bench, teamMap, playerMap, hotSuggestions, longTermSuggestions };
+    // Bench Boost isn't about who scores most, it's about making sure all 15
+    // shirts are actually on the pitch — rank by playing likelihood instead
+    // of xPts, and use a much larger minGain since the score is 0-100.
+    const bboostSuggestions = buildSuggestions({
+      ...args,
+      scoreFn: (p) => computePlayingLikelihood(p, gwSoFar),
+      minGain: 10,
+    });
+
+    return { starting, bench, teamMap, playerMap, hotSuggestions, longTermSuggestions, bboostSuggestions };
   }, [bootstrap, fixtures, picks, maxTransfers]);
 
   const livePoints = Object.fromEntries(
@@ -234,6 +251,18 @@ export default function TransfersPage() {
                   {label}
                 </button>
               ))}
+              <button
+                onClick={() => setTransferMode('bboost')}
+                title="Bench Boost — no extra transfers, just makes sure your 15 are actually playing"
+                className="px-2 h-7 text-[11px] font-mono font-bold uppercase tracking-widest transition-all"
+                style={
+                  isBboost
+                    ? { background: 'linear-gradient(135deg,#a78bfa,#8b5cf6)', color: '#0a1120' }
+                    : { background: 'rgba(167,139,250,0.06)', color: '#c4b5fd', border: '1px solid rgba(167,139,250,0.2)' }
+                }
+              >
+                BB
+              </button>
             </div>
             <button
               onClick={() => setShowExplainer((v) => !v)}
@@ -257,7 +286,7 @@ export default function TransfersPage() {
           >
             <p>Suggestions are based on the xPts model.</p>
             <p>Red ! = price dropping | Green up arrow = in form</p>
-            <p>1 / 2 = free transfers, priced as a package so making them together costs nothing extra. 3 / 4 include the points hit for going beyond 2. WC / FH (Wildcard / Free Hit) assume unlimited free transfers.</p>
+            <p>1 / 2 = free transfers, priced as a package so making them together costs nothing extra. 3 / 4 include the points hit for going beyond 2. WC / FH (Wildcard / Free Hit) assume unlimited free transfers. BB (Bench Boost) grants none of those — it ranks by playing likelihood instead of points, since the goal is a full 15 who are actually on the pitch.</p>
           </div>
         )}
 
@@ -305,7 +334,27 @@ export default function TransfersPage() {
           </div>
 
           <div className="space-y-4">
-            {transferMode !== 'wildcard' && (
+            {isBboost && (
+              <div className="card">
+                <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-0.5">
+                  Bench Boost Prep
+                </h2>
+                <p className="text-[11px] text-liu-muted font-mono mb-3">Ranked by playing likelihood, not points</p>
+                {bboostSuggestions.length === 0 ? (
+                  <p className="text-sm text-liu-muted font-mono py-4 text-center">
+                    Your 15 all look nailed-on to play right now.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {bboostSuggestions.map((s, i) => (
+                      <HotSuggestionCard key={i} suggestion={s} teamMap={teamMap} mode="playing" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {transferMode !== 'wildcard' && !isBboost && (
               <div className="card">
                 <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-0.5">
                   Hot Transfers
@@ -325,7 +374,7 @@ export default function TransfersPage() {
               </div>
             )}
 
-            {transferMode !== 'freehit' && (
+            {transferMode !== 'freehit' && !isBboost && (
               <div className="card">
                 <h2 className="text-xs font-mono uppercase tracking-widest text-liu-muted mb-0.5">
                   Long Term Transfers
@@ -361,10 +410,13 @@ function NetCost({ sellPrice, cost }) {
   );
 }
 
-function HotSuggestionCard({ suggestion, teamMap }) {
+function HotSuggestionCard({ suggestion, teamMap, mode = 'xpts' }) {
   const { out, in: inPlayer, outScore, inScore, delta, sellPrice, cost } = suggestion;
   const pos = POSITION_MAP[out.element_type];
   const pc = POS_COLOR[out.element_type];
+  const isPlaying = mode === 'playing';
+  const fmtScore = (v) => (isPlaying ? `${v}%` : `${v} xPts`);
+  const deltaLabel = isPlaying ? `+${delta.toFixed(0)}%` : `+${delta.toFixed(1)} xPts`;
 
   return (
     <div className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -377,20 +429,20 @@ function HotSuggestionCard({ suggestion, teamMap }) {
         </span>
         <div className="flex items-center gap-2">
           <NetCost sellPrice={sellPrice} cost={cost} />
-          <span className="text-xs font-mono font-bold" style={{ color: '#40c4ff' }}>+{delta.toFixed(1)} xPts</span>
+          <span className="text-xs font-mono font-bold" style={{ color: isPlaying ? '#a78bfa' : '#40c4ff' }}>{deltaLabel}</span>
         </div>
       </div>
       <div className="flex items-center justify-between text-sm">
         <div className="min-w-0">
           <div className="text-liu-muted text-xs font-mono uppercase tracking-widest">Out</div>
           <div className="font-medium text-white truncate">{out.web_name}</div>
-          <div className="text-xs text-liu-muted font-mono">{teamMap[out.team]?.short_name} | £{sellPrice}m | {outScore} xPts</div>
+          <div className="text-xs text-liu-muted font-mono">{teamMap[out.team]?.short_name} | £{sellPrice}m | {fmtScore(outScore)}</div>
         </div>
         <div className="text-liu-muted px-2">→</div>
         <div className="min-w-0 text-right">
           <div className="text-liu-muted text-xs font-mono uppercase tracking-widest">In</div>
           <div className="font-medium text-white truncate">{inPlayer.web_name}</div>
-          <div className="text-xs text-liu-muted font-mono">{teamMap[inPlayer.team]?.short_name} | £{cost}m | {inScore} xPts</div>
+          <div className="text-xs text-liu-muted font-mono">{teamMap[inPlayer.team]?.short_name} | £{cost}m | {fmtScore(inScore)}</div>
         </div>
       </div>
     </div>

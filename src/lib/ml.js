@@ -101,6 +101,19 @@ export function computeFixtureBreakdown(player, fixturesByTeam, positionAvgPpg =
   return { fixtures, total };
 }
 
+// How likely a player is to actually start, on a 0-100 scale — for Bench
+// Boost planning, where the point isn't who scores the most, it's making
+// sure all 15 shirts are actually on the pitch. Blends fitness (status /
+// chance_of_playing) with how consistently they've started so far this
+// season, so a fit-but-rotated squad player still ranks behind a nailed-on
+// starter even though neither is "injured".
+export function computePlayingLikelihood(player, gwSoFar) {
+  const avail = availabilityFactor(player);
+  const startRate =
+    gwSoFar > 0 ? Math.min((player.starts || 0) / gwSoFar, 1) : (player.minutes > 0 ? 1 : 0.5);
+  return Math.round(avail * startRate * 100);
+}
+
 // Build team → upcoming-fixture array from raw fixtures endpoint data.
 export function buildFixtureMap(fixtures, currentGw) {
   const map = {};
