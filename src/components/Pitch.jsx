@@ -1,9 +1,39 @@
+import { useState } from 'react';
+
 export const POS_COLOR = {
   1: { bg: 'rgba(234,179,8,0.85)',  color: '#0a1120' },
   2: { bg: 'rgba(59,130,246,0.85)', color: '#0a1120' },
   3: { bg: 'rgba(64,196,255,0.85)', color: '#0a1120' },
   4: { bg: 'rgba(239,68,68,0.85)',  color: '#0a1120' },
 };
+
+// Club crest with a graceful fallback to the short code text if a badge is
+// missing for a team (promoted/relegated clubs, etc.) rather than a broken
+// image icon.
+export function TeamBadge({ team, className, style }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed || !team?.short_name) {
+    return (
+      <div
+        className={className}
+        style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+      >
+        {team?.short_name || '—'}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={`/badges/${team.short_name}.png`}
+      alt={team.short_name}
+      className={className}
+      style={style}
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 export function Pitch({ picks, playerMap, teamMap, livePoints }) {
   const rows = [1, 2, 3, 4].map((type) =>
@@ -52,7 +82,6 @@ export function Pitch({ picks, playerMap, teamMap, livePoints }) {
 export function PlayerToken({ pick, player, team, livePoints }) {
   const pts = livePoints[pick.element] ?? 0;
   const displayPts = pick.multiplier > 1 ? pts * pick.multiplier : pts;
-  const pc = POS_COLOR[player?.element_type];
   const priceDropping = player?.cost_change_event < 0;
   const inForm = parseFloat(player?.form) > 5;
 
@@ -60,10 +89,10 @@ export function PlayerToken({ pick, player, team, livePoints }) {
     <div className="flex flex-col items-center gap-1 w-16 md:w-20">
       <div className="relative">
         <div
-          className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold font-mono shrink-0"
-          style={{ background: pc?.bg, color: pc?.color, boxShadow: '0 2px 8px rgba(0,0,0,0.35)' }}
+          className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shrink-0 p-1.5"
+          style={{ background: 'rgba(255,255,255,0.92)', boxShadow: '0 2px 8px rgba(0,0,0,0.35)' }}
         >
-          {team?.short_name || '—'}
+          <TeamBadge team={team} className="w-full h-full object-contain" style={{ color: '#0a1120', fontSize: '10px' }} />
         </div>
         {(pick.is_captain || pick.is_vice_captain) && (
           <span
