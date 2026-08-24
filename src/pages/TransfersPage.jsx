@@ -32,7 +32,7 @@ function bestReplacement({ player, candidates, squadIds, excludeIds, budget, out
 // one go. Capped at maxTransfers so it never suggests more transfers than
 // the user has free — an extra transfer costs -4pts, and the point is to
 // avoid a hit, not spend one recommending it.
-function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn, maxTransfers, minGain = 0.5 }) {
+function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn, maxTransfers, minGain = 0.5, gwSoFar = 0 }) {
   const candidates = Object.values(playerMap).map((p) => ({
     player: p,
     score: scoreFn(p),
@@ -43,9 +43,12 @@ function buildSuggestions({ picks, playerMap, squadIds, bank, scoreFn, maxTransf
     .map((pick) => {
       const player = playerMap[pick.element];
       if (!player) return null;
-      // no minutes yet this season means no real signal to judge them on -
-      // don't suggest transferring someone out before they've even played
-      if (player.minutes === 0) return null;
+      // Before any gameweek has been played there's genuinely no signal yet
+      // (everyone's on 0 minutes), so don't flag the whole squad. Once at
+      // least one gameweek has happened, 0 minutes is real information — an
+      // unused sub or a hidden injury — and is exactly who should surface,
+      // especially for Bench Boost.
+      if (player.minutes === 0 && gwSoFar === 0) return null;
       return { player, outScore: scoreFn(player), sellPrice: player.now_cost / 10 };
     })
     .filter(Boolean);
@@ -155,14 +158,18 @@ export default function TransfersPage() {
       bootstrap.events.find((e) => e.is_next)?.id || 1;
     const fixturesByTeam = fixtures.length ? buildFixtureMap(fixtures, currentGw) : {};
     const positionAvgPpg = computePositionAvgPpg(bootstrap.elements);
-    const gwSoFar = bootstrap.events.filter((e) => e.finished).length;
+    // `finished` stays false for days after a gameweek's matches are
+    // actually played (FPL doesn't flip it until bonus points are
+    // finalised), so use "deadline has passed" as the real signal for
+    // whether a gameweek's minutes/starts data means anything yet.
+    const gwSoFar = bootstrap.events.filter((e) => new Date(e.deadline_time) < new Date()).length;
 
     const squadIds = new Set(picks.picks.map((p) => p.element));
     const bank = (picks.entry_history?.bank || 0) / 10;
     const starting = picks.picks.filter((p) => p.position <= 11);
     const bench    = picks.picks.filter((p) => p.position > 11).sort((a, b) => a.position - b.position);
 
-    const args = { picks: picks.picks, playerMap, squadIds, bank, maxTransfers };
+    const args = { picks: picks.picks, playerMap, squadIds, bank, maxTransfers, gwSoFar };
 
     const hotSuggestions = buildSuggestions({
       ...args,
