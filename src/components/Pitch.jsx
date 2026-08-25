@@ -45,7 +45,7 @@ export function Pitch({ picks, playerMap, teamMap, livePoints }) {
       className="relative rounded-2xl overflow-hidden p-4 md:p-6 space-y-4 md:space-y-8"
       style={{
         background:
-          'repeating-radial-gradient(circle at center, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 40px, rgba(0,0,0,0.05) 40px, rgba(0,0,0,0.05) 80px), radial-gradient(ellipse at center, #1c7a44 0%, #15642f 65%, #0f4a24 100%)',
+          'repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 40px, rgba(0,0,0,0.05) 40px, rgba(0,0,0,0.05) 80px), radial-gradient(ellipse at center, #1c7a44 0%, #15642f 65%, #0f4a24 100%)',
         border: '1px solid rgba(255,255,255,0.08)',
       }}
     >
