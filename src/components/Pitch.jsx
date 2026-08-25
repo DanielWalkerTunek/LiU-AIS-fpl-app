@@ -44,22 +44,23 @@ export function Pitch({ picks, playerMap, teamMap, livePoints }) {
     <div
       className="relative rounded-2xl overflow-hidden p-4 md:p-6 space-y-4 md:space-y-8"
       style={{
-        background: 'radial-gradient(ellipse at center, #0f4028 0%, #0a2e1c 65%, #082418 100%)',
+        background:
+          'repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 40px, rgba(0,0,0,0.05) 40px, rgba(0,0,0,0.05) 80px), radial-gradient(ellipse at center, #1c7a44 0%, #15642f 65%, #0f4a24 100%)',
         border: '1px solid rgba(255,255,255,0.08)',
       }}
     >
       {/* Pitch markings */}
       <div
         className="absolute inset-4 md:inset-6 rounded-lg pointer-events-none"
-        style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+        style={{ border: '1px solid rgba(255,255,255,0.18)' }}
       />
       <div
         className="absolute left-1/2 top-1/2 w-20 h-20 md:w-28 md:h-28 rounded-full pointer-events-none"
-        style={{ border: '1px solid rgba(255,255,255,0.1)', transform: 'translate(-50%, -50%)' }}
+        style={{ border: '1px solid rgba(255,255,255,0.18)', transform: 'translate(-50%, -50%)' }}
       />
       <div
         className="absolute left-4 right-4 md:left-6 md:right-6 top-1/2 pointer-events-none"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}
+        style={{ borderTop: '1px solid rgba(255,255,255,0.18)' }}
       />
 
       {rows.map((row, i) => (
